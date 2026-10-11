@@ -69,3 +69,24 @@ Phase 01H repeated these four checks with the same results. The new post-checker
   ```
   Followed by SHA-256 recording via `Get-FileHash -Algorithm SHA256` and archive verification via `pg_restore --list`.
 - **Stop condition enforced:** No migration applied. Awaiting separate, explicit owner authorization.
+
+## Phase 03C protected backup and migration readiness (2026-10-11)
+
+**Verdict: BLOCKED PENDING OWNER APPROVAL.** Protected backup created, verified, and retained. Baseline verification completed. All pre-flight criteria satisfied. Migration execution halted awaiting explicit owner authorization.
+
+- **Verified target:** PostgreSQL 18.0.3 on IPv6 loopback `[::1]:5432`, database `mva_dev`, cluster system identifier `7629597861964584196`. Confirmed local development target (not production).
+- **Created & retained backup archive:**
+  - File: `C:\mva-db-backups\mva_dev_pre_migration_20261011_205157.dump`
+  - Size: 100,733 bytes
+  - SHA-256: `ad03bb807d35d106f070b536a8474cc3a19b2b0ac207825098aa3df1924d543e`
+  - Archive verification: `pg_restore --list` successfully parsed 131 TOC entries (schemas, tables, constraints, sequences, indexes).
+  - Restore test limitation: Non-interactive subshell execution prevented standalone disposable database restore on `postgres` cluster without terminal prompt. Archive format and TOC validity confirmed via `pg_restore --list`.
+- **Pre-migration baseline verification:**
+  - Executed `db/verification/0001_mva_dev_post_read_only.sql` in read-only transaction.
+  - Identity and MVA baseline passed; all 9 scoreboard-specific checks failed as expected for an unmigrated database.
+  - MVA public table definition fingerprint: SHA `c16708e4bf35a86e66c098a810108d0c` across 289 catalog entries.
+- **Migration candidate integrity:**
+  - File: `db/migrations/0001_scoreboard_foundation.mva_dev.review.sql`
+  - SHA-256: `508b1cb926500936c7c7aa84dc1a802bb11ad4b3c2b52045133294a50438f2b0` (enforced via `.gitattributes` LF normalization).
+- **Quality gates:** `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (12/12 passing), and `pnpm build` (Next.js 16 Turbopack production build) all passed cleanly.
+- **Stop condition enforced:** No migration executed. Awaiting explicit owner approval.
