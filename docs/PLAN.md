@@ -1,6 +1,6 @@
 # MVA Live Scoreboard implementation plan
 
-**Current phase:** 01C architecture decisions (documentation only). **Product status:** In Development. See [architecture review](ARCHITECTURE.md#phase-01c--mvp-architecture-decision) for the recommended MVP design and its approval gates; no features or migrations exist yet.
+**Current phase:** 01D preflight and migration preparation. **Product status:** In Development. The local `mva_dev` PostgreSQL target and external Supabase Auth settings were inspected read-only; review-only SQL and TypeScript contracts now exist. No migration has been applied and no application feature is implemented. See [Phase 01D findings](ARCHITECTURE.md#phase-01d--verified-target-and-prepared-foundation) and the [runbook](DB_RUNBOOK.md).
 
 ## Sequence and gates
 
@@ -11,7 +11,8 @@ Do not start schema or Auth work until the MVA identity boundary and scoreboard 
 | **01A — Documentation and architecture** | Replace starter README; roadmap, handoff, architecture and guideline review. | Repository and installed stack inspection. | Docs distinguish proposals from implementation, identify decisions, and provide next action. | Lint, TypeScript, build, diff check; record environmental failures. | **Completed** (build limited by network). |
 | **01B — Architecture verification** | Verified MVA source contracts and documented Auth, schema, integration, scoring, and OBS proposals. | Read-only MVA source access. | Verified facts distinguished from proposed contracts. | Source review and lint/type/build; build limitation recorded. | **Completed** (documentation). |
 | **01C — Architecture decisions** | Compare Auth isolation options; recommend MVP boundary; lock design defaults; nonproduction migration, rollback, and security plan. | 01B findings; deployed project and owner approval remain release gates. | Defaults and unresolved external approvals explicit; no application change. | Docs review, lint/type/build/diff checks; font-network failure recorded. | **Completed** (documentation). |
-| **01D — Database/Auth foundation** | Implement approved nonproduction schema, roles, session handling, and environment example. | 01C gates, nonproduction target, migration ownership, rollback approval. | No public signup; unauthorized writes denied; secrets server-only; rollback rehearsed. | Migration/restore, Auth, RLS, role/assignment, lint/type/build. | Not Started |
+| **01D — Preflight and migration preparation** | Verify target safely; prepare guarded SQL, read-only verification, typed contracts, security/rollback runbook. | Local `mva_dev` available; external Auth/project topology and owner approval still gates execution. | No SQL applied; artifacts reviewable; superuser runtime risk explicit. | Read-only catalog queries, SQL review, lint/type/build/diff; font-network failure recorded. | **Completed** (artifacts only). |
+| **01D implementation — Database/Auth foundation** | After approval, apply/rehearse schema only in disposable target; create non-superuser runtime path and Auth session handling. | Owner approval, backup/restore point, reviewed credentials and migration target. | No public signup; unauthorized writes denied; secrets server-only; rollback rehearsed. | Migration/restore, Auth, RLS, role/assignment, lint/type/build. | Not Started |
 | **01E — Application shell and admin UI** | Accessible sign-in and admin navigation, shared primitives and screen states. | 01D identity and UI guidelines. | Responsive mobile/desktop shell with loading, empty, and error states; no dead controls. | Keyboard, focus, contrast, 360–1920 px browser review; lint/type/build. | Not Started |
 | **02 — MVA integration** | Secure read-only catalog for tournaments, divisions, eligible teams and official logos; dependent selection UI. | Verified MVA schema/API, eligibility policy, credentials and logo allowlist; 01B–01C. | Only eligible teams selectable, no unrelated MVA data in responses, missing logos handled. | Contract and authorization tests, changed upstream selection, invalid logos, empty states. | Not Started |
 | **03 — Match management** | Create matches, configure best-of rules, assign scorekeepers, manage upcoming/live/completed lifecycle. | 01B, 02, approved rule defaults and admin policy. | Distinct eligible teams; immutable setup snapshot; authorized lifecycle actions audited and confirmed when high impact. | Server validation and role tests, lifecycle transitions, phone/desktop UI. | Not Started |
@@ -21,9 +22,9 @@ Do not start schema or Auth work until the MVA identity boundary and scoreboard 
 
 ## Immediate architectural blockers
 
-- MVA source uses Supabase SSR plus separate active ADMIN grants; deployed Auth issuer, domain/session behavior, and shared-schema approval remain unconfirmed.
+- Local `mva_dev` is PostgreSQL 18 without `auth` schema, while both repos configure the same external Supabase URL/key. Deployed Auth issuer, domain/session behavior, and shared-schema approval remain unconfirmed.
 - MVA schema and `VERIFIED` filtering are verified in source. Proposed scheduling statuses and a restricted catalog endpoint need MVA owner approval and implementation.
-- Nonproduction migration target, owner, backup/retention period, and production rollout approval remain outstanding.
+- The local target is identifiable, but disposable-clone designation, owner approval, backup/retention period, non-superuser runtime credential, and production rollout approval remain outstanding.
 - Proposed best-of-three and operational scoring defaults need MVA association approval; official FIVB rules are identified separately in the architecture review.
 
-**Next bounded task:** Phase 01D preflight: verify the deployed Auth issuer and owner-approved shared-schema boundary, choose a disposable nonproduction Supabase target, and prepare concrete reviewed migrations and rollback instructions before executing them.
+**Next bounded task:** Obtain owner approval and a disposable clone/backup, verify the live Auth issuer and login redirects, review the prepared SQL and non-superuser runtime design, then rehearse migration and rollback in that clone before application Auth work.

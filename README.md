@@ -1,6 +1,6 @@
 # MVA Live Scoreboard
 
-**Status: In Development — Phase 01A (planning and architecture).** The repository currently contains the Next.js starter application. Authentication, match management, scoring, MVA integration, and OBS overlays are planned, not available yet.
+**Status: In Development — Phase 01D (foundation preparation).** The repository still contains the Next.js starter application. Review-only migration SQL and TypeScript contracts have been prepared; authentication, match management, scoring, MVA integration, and OBS overlays are not available yet.
 
 MVA Live Scoreboard is a standalone, online-first volleyball scoring application for Mahatao Volleyball Association (MVA) broadcasts. An authorized scorekeeper will control a match from a phone-friendly interface while OBS Studio shows a transparent, public, read-only Browser Source during Facebook Live. The existing [MVA application](https://github.com/AldenDerf/mva) remains the source for tournaments, divisions, eligible teams, and official team logos; this project is intended to have separate deployment and scoreboard persistence.
 
@@ -34,7 +34,7 @@ Open `http://localhost:3000`. Current scripts are `pnpm dev`, `pnpm lint`, `pnpm
 
 ### Environment configuration
 
-The starter application has no defined application environment contract. A future implementation should document approved variable names in `.env.example` without values and place local credentials in an ignored `.env.local`. Confirm Supabase project boundaries, the MVA read interface, and server-only credentials before defining variables. Never commit secrets or put privileged keys in browser code.
+The current ignored `.env.local` has `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. The database credentials currently identify a privileged local PostgreSQL role and are **not suitable for application runtime**. Read the [database runbook](docs/DB_RUNBOOK.md) before any connection or migration work. A future implementation should document approved variable names in `.env.example` without values and use a distinct least-privilege server credential. Never commit secrets or put privileged keys in browser code.
 
 ## Intended OBS workflow
 

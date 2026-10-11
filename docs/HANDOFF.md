@@ -1,31 +1,28 @@
-# Agent handoff — Phase 01C architecture decisions
+# Agent handoff — Phase 01D foundation preparation
 
-**Current phase:** 01C documentation complete; implementation has not started. **Branch:** `docs/phase-01a-architecture`. **Base HEAD for this task:** `cc9da89b37f176f358692276baf7e896aea1cc97`. **Latest commit:** the Phase 01C documentation commit containing this handoff; use `git log -1 --oneline` for its exact SHA.
+**Branch:** `docs/phase-01a-architecture`. **Base HEAD:** `df534c1c073acd909870f265469df693f704a235`. **Latest HEAD:** the Phase 01D commit containing this file; run `git rev-parse HEAD` for the exact SHA. **Phase:** 01D artifacts prepared, nothing applied.
 
-## Completed work
+## Completed
 
-- Compared shared and separate Supabase Auth/project architectures. Recommended a shared Auth project with an isolated scoreboard schema, subject to MVA owner, access, and nonproduction review gates.
-- Defined scoreboard-specific grant administration, assigned-match permissions, `VERIFIED` team and league-status eligibility, historical match snapshots, scoring workflow, and completed-match reopening.
-- Added a nonproduction schema sequence, rollback plan, security checks, required MVA catalog API changes (documentation only), and a reproducible font-build strategy to [ARCHITECTURE.md](ARCHITECTURE.md).
-- Updated [PLAN.md](PLAN.md) to separate completed architecture work from future database/Auth and UI implementation.
+- Read the project instructions and prior architecture. Inspected the local MVA source read-only at `7be85596a3c6ea5b9af184f233f354f394e1e26e`.
+- Parsed both ignored env files without printing credentials. Both point to loopback PostgreSQL `mva_dev` and the same external Supabase URL/anon key. Read-only SQL confirmed PostgreSQL 18.0.3, MVA `public` tables, no `scoreboard` or `auth` schema, and a configured `postgres` superuser with `BYPASSRLS`.
+- Prepared [guarded migration](../db/migrations/0001_scoreboard_foundation.sql), [verification SQL](../db/verification/0001_read_only.sql), [database runbook](DB_RUNBOOK.md), and [catalog](../lib/contracts/mva-catalog.ts) / [scoring](../lib/contracts/scoring.ts) types. Updated architecture, plan, and README.
+- No migration, Auth call, user creation, MVA change, scoring feature, or overlay was performed.
 
-**Files modified in this task:** `docs/ARCHITECTURE.md`, `docs/PLAN.md`, `docs/HANDOFF.md`. The local MVA repository was read-only; no application code, database objects, or migration files were changed.
+**Files changed:** `README.md`, `docs/ARCHITECTURE.md`, `docs/PLAN.md`, `docs/HANDOFF.md`, `docs/DB_RUNBOOK.md`, `db/migrations/0001_scoreboard_foundation.sql`, `db/verification/0001_read_only.sql`, `lib/contracts/mva-catalog.ts`, `lib/contracts/scoring.ts`.
 
-**Validation:** `pnpm lint`, `pnpm exec tsc --noEmit`, and `git diff --check` passed. `pnpm build` failed again while the unchanged starter layout fetched Geist and Geist Mono from `fonts.googleapis.com`; network availability remains the build gate. No Auth, database, browser, OBS, or Facebook Live integration was tested.
+**Validation:** `pnpm lint`, `pnpm exec tsc --noEmit`, and `git diff --check` passed. `pnpm build` failed while the unchanged starter layout fetched Geist and Geist Mono from Google Fonts; a separate connectivity check also failed. Database verification used only `BEGIN READ ONLY` queries. Migration SQL was **not executed or database-tested**; typed contracts have no runtime implementation.
 
-## Decisions and gates
+## Critical findings and blockers
 
-Phase 01C design defaults are in [ARCHITECTURE.md](ARCHITECTURE.md#phase-01c--mvp-architecture-decision) and supersede the earlier Phase 01B options. They are not evidence of owner approval or deployed behavior. Before implementation, confirm the deployed MVA Supabase issuer and cookie behavior, approve shared schema/migration ownership, approve the restricted MVA catalog API and league-status filter, obtain MVA approval for best-of-three and operational scoring policy, and select a disposable nonproduction target. Determine retention, backups, and production release owner.
+Local `mva_dev` is **not** the Supabase Auth database: `auth.users` is absent. Scoreboard grant user IDs must be treated as externally verified UUIDs; do not add an `auth.users` FK. The shared-project assumption in Phase 01C is superseded for this local target. The current `postgres` credential is superuser and bypasses RLS; never use it as the web app runtime connection. Owner approval, disposable-clone/backup designation, a non-superuser runtime identity, live Auth issuer/redirect verification, catalog API ownership, MVA policy approval, and retention remain outstanding.
 
-The app remains the Next.js starter. MVA does not yet expose the proposed integration endpoint. No scoreboard Auth, schema, scoring, or overlay exists. The Google Fonts download failure still prevents a successful build in this host unless network access is restored or a separately reviewed local-font code change is made.
+The prepared SQL is guarded for `mva_dev`, but do not execute it until the [runbook](DB_RUNBOOK.md) gates pass. It creates only scoreboard objects, default-deny RLS, and NOLOGIN capability roles. It provides no scoring mutation function or runtime login. The proposed MVA catalog endpoint has not been implemented. The unchanged starter's Geist download may still block `pnpm build` on this network.
 
 ## Exact next task
 
-Begin Phase 01D preflight: verify the deployed Auth project and MVA owner approvals, identify the nonproduction Supabase target, then prepare concrete schema/RLS migrations and rollback instructions for review. Do not touch production or execute a migration until the target and impact are explicit.
+Have the owner review the target and SQL, establish a disposable `mva_dev` clone plus backup, verify Supabase Auth issuer/redirect behavior, then rehearse the migration and role/RLS checks in that clone. Next, design a non-superuser server runtime path and Auth session integration before any feature UI. Do not use the current superuser connection in application code.
 
-## Codex / Antigravity continuation rules
+## Continuation rules
 
-1. Inspect `git status` and recent commits before editing; read `AGENTS.md`, `docs/UI_UX_GUIDELINES.md`, `docs/PLAN.md`, and this handoff.
-2. Preserve uncommitted work and never edit the same working tree concurrently. Use a focused branch or a clean committed tree when switching agents.
-3. Keep small Conventional Commits and update this handoff after substantial work with branch, HEAD, changed files, validation, blockers, and next action.
-4. Do not merge, push, deploy, or modify production resources without explicit direction.
+Inspect `git status`/recent commits and read `AGENTS.md`, `docs/UI_UX_GUIDELINES.md`, `docs/PLAN.md`, this handoff, and the runbook. Preserve uncommitted work, use focused Conventional Commits, and update this handoff after substantial work. Do not merge, push, deploy, or modify production or MVA resources without explicit direction.

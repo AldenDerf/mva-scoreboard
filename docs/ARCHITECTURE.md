@@ -1,6 +1,6 @@
 # Architecture review — Phase 01C decisions
 
-**Status:** documentation-only architecture decision, not implementation approval. MVA source was inspected read-only at local `C:/nextjs-projects/ts/mva` commit `7be8559`; its checked-in Prisma schema and queries are evidence of implementation, not confirmation of deployed production state. No scoreboard schema, API, authentication, or deployment has been implemented. Scoreboard table names below remain proposals.
+**Status:** Phase 01D prepared artifacts, not applied. MVA source was inspected read-only at local `C:/nextjs-projects/ts/mva` commit `7be8559`; its checked-in Prisma schema and queries are evidence of implementation, not confirmation of deployed production state. No scoreboard schema, API, authentication, or deployment has been implemented. Phase 01D verified that local `mva_dev` has no `auth` schema; see [database runbook](DB_RUNBOOK.md). That finding supersedes any earlier assumption that local PostgreSQL is the same Supabase project as Auth.
 
 ## Boundaries and data flow
 
@@ -160,3 +160,13 @@ The bundled Next.js App Router [font guide](../node_modules/next/dist/docs/01-ap
 ### Remaining gates
 
 Confirm deployed Supabase issuer/project and ownership; obtain MVA owner approval for shared schema, catalog endpoint, and league-status policy; approve the proposed MVA scoring workflow and admin bootstrap; decide retention/backup period and production migration owner; validate fonts on a network-enabled runner. Until then these are documented design defaults, not deployed policy.
+
+## Phase 01D — verified target and prepared foundation
+
+Read-only queries against the configured direct connection found loopback PostgreSQL 18.0.3 database `mva_dev`, MVA tables in `public`, no `scoreboard` schema, and **no `auth` schema or `auth.users` table**. The configured `postgres` role is superuser and has `BYPASSRLS`. Both local repositories use the same database host/name and the same external Supabase URL and anon key. These are configuration/observed-local facts, not proof of production topology or a live Auth issuer. The Phase 01C recommendation to share a Supabase **project** cannot be claimed for this target. The revised local design is: separate scoreboard schema in shared `mva_dev` PostgreSQL, external Supabase Auth identity verification at the scoreboard server, and no FK to `auth.users`. A non-superuser application credential is a hard implementation gate.
+
+The review-only [foundation migration](../db/migrations/0001_scoreboard_foundation.sql) creates `scoreboard` schema, matches, configuration, sets, event/audit history, role grants, assignments, constraints, indexes, default-deny RLS, NOLOGIN capability roles, and a minimal overlay projection. It does **not** implement scoring functions or give a runtime role table mutation privileges. [Read-only verification SQL](../db/verification/0001_read_only.sql) and the [runbook](DB_RUNBOOK.md) specify checks and rollback. The migration guard is intentionally fixed to `mva_dev`; any other target needs a separately reviewed artifact. No SQL was executed.
+
+The external MVA catalog contract is represented by [typed interfaces](../lib/contracts/mva-catalog.ts), and proposed score commands/results by [scoring contracts](../lib/contracts/scoring.ts). These compile-time types are not runtime validation and do not constitute an implemented API. On implementation, validate every ID, string length, enum, pagination bound, logo host/scheme, two-team distinction, and response shape at the server boundary. The MVA-owned API remains absent; no MVA repository change occurred.
+
+The migration's default-deny posture is deliberate. An actual application mutation path requires a later reviewed non-superuser LOGIN role and narrowly scoped transactional functions or equivalent server-enforced DB boundary. Do not connect application code using the currently configured `postgres` superuser. The overlay reader role has only the view grant and no login credential; a future server route should fetch by public id and rate-limit it. Realtime channel design remains unimplemented and cannot grant table-level anonymous access simply to publish changes.
