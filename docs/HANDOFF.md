@@ -1,35 +1,77 @@
-# Agent handoff — Phase 02B UI and OBS verification
+# Agent handoff — Phase 03A: Supabase Authentication Foundation
 
-**Branch:** `feat/phase-02a-ui-foundation`. **Base HEAD for this phase:** `e6d05b16a4f13f320d4a77a3537cedaf8c096a5b`. **Latest HEAD:** run `git rev-parse HEAD` for the Phase 02B local commit. **Database/Auth status:** no migration, database change, Auth user/configuration change, or application login implementation.
+**Branch:** `feat/phase-03a-supabase-auth-foundation`. **Base HEAD:** `90fb16c4d7537d06af237408078e1d58684b8148` (Phase 02B commit). **Latest HEAD:** run `git rev-parse HEAD` for the current commit. **Database/Auth status:** no database migrations applied to `mva_dev` or production; no Auth user/configuration changes made. Server-side Supabase SSR authentication connected with fail-closed authorization.
 
-## Implemented
+## Implemented in Phase 03A
 
-- Replaced the starter page with MVA Live Scoreboard branding and a responsive login **interface preview**. Email/password inputs have labels, native required/email validation, a show/hide control, and visible preview loading/error states. Submitting a valid-looking form displays an honest unavailable message and clears the password; it sends no credentials and grants no access.
-- Added small reusable button, field/select, card, badge, brand, and preview-layout components. The admin preview has desktop sidebar and mobile scrolling navigation for Dashboard, Matches, New Match, Match History, Scorekeepers, and Settings. Every destination exists and uses an honest empty state; no production statistics are invented.
-- Added fictional match setup selections that reset downstream values when tournament/division changes, prevent identical teams, and show best-of-3/5 defaults in a non-saving review step. Added a transparent, read-only visual scorebug under `/dev/overlay` with placeholder team marks, long-name truncation, serving indicator, and a prominent “Preview · Not live” label.
-- All `/dev` routes are guarded in `app/dev/layout.tsx` to return 404 outside development. Production server checks confirmed 404 for dashboard, setup, and overlay; root login returned 200. Development server checks confirmed 200 for root and preview routes. No protected real dashboard pages were created.
-- Switched from `next/font/google` to Vercel's official `geist` package, which bundles Geist Sans/Mono locally under SIL OFL. This preserves typography and removed the build-time Google Fonts request. Next dev rewrote its generated `AGENTS.md` block; the project-specific rules were restored outside that block, and the generated feedback block was retained.
+- **Supabase SSR integration:** Installed `@supabase/ssr` (0.12.7) and `@supabase/supabase-js` (2.117.3). Added `lib/supabase/config.ts`, `lib/supabase/client.ts`, `lib/supabase/server.ts`, and `lib/supabase/proxy.ts`. Added root Next.js 16 proxy convention `proxy.ts` for automatic session token refresh.
+- **Cross-app cookie isolation:** Configured `NEXT_PUBLIC_SUPABASE_COOKIE_NAME=sb-mva-scoreboard-auth-token`. Because localhost ports (`localhost:3000` for MVA vs `localhost:3001` for Scoreboard) share cookie storage, using an app-scoped cookie prevents scoreboard logins/logouts from interfering with or stomping the MVA session cookies on port 3000.
+- **Server actions for Auth:** Implemented `signInAction` and `signOutAction` in `app/actions/auth.ts`.
+  - Implemented server-side input validation for email and password.
+  - Implemented generic authentication error handling: returns `"Invalid email or password. Please verify your credentials and try again."` to prevent user enumeration / account existence disclosure.
+  - Clears sensitive password field on failure.
+- **Fail-closed authorization boundary:** Added `lib/auth/authorization.ts` and `lib/auth/session.ts`.
+  - Checks verified session via `supabase.auth.getUser()`.
+  - Distinguishes authentication from authorization: having a valid Supabase identity conveys zero scoreboard privileges by default.
+  - Does not infer privileges from email or MVA admin status.
+  - Because `scoreboard.role_grants` is unmigrated in `mva_dev`, all authenticated accounts evaluate to `ACCESS_PENDING` (fails closed).
+  - Added guards: `requireScoreboardAuth()`, `requireAdmin()`, `requireScorekeeper()`.
+- **Open redirect protection:** Added `lib/auth/redirects.ts` with `getSafeRedirectUrl()` ensuring only sanitized local relative paths starting with `/` are accepted (rejecting `//`, `/\`, backslashes, control characters, and protocol schemes).
+- **Access Pending & Unauthorized UI:**
+  - Added `app/access-pending/page.tsx` for authenticated users without an active scoreboard role grant. Features a calm, branded UI matching guidelines, displays the signed-in email, explains the fail-closed access requirement, and provides a server-action Sign Out button.
+  - Added `app/unauthorized/page.tsx` for role mismatches.
+- **Protected routes foundation:**
+  - Added `app/(protected)/layout.tsx` enforcing the 3-step check (session, identity, scoreboard role) before rendering.
+  - Added `app/(protected)/dashboard/page.tsx` with role badge and Sign Out button.
+  - Opted dynamic authenticated routes out of static prerendering via Next.js 16 `export const instant = false`.
+- **Login UI integration:** Updated `components/login-form.tsx` to connect to `signInAction` using React 19 `useActionState`. Removed the temporary preview warning notice. Retained password visibility toggle, accessible labels, `aria-invalid`, `aria-describedby`, and loading states.
+- **Automated test suite:** Added `tests/` with 12 unit tests running via Node 24 native test runner:
+  - `tests/redirects.test.ts` (4 tests)
+  - `tests/cookie-config.test.ts` (3 tests)
+  - `tests/auth-validation.test.ts` (5 tests)
+  - Added `pnpm test` script to `package.json`.
 
-**Files changed:** `AGENTS.md`, `app/globals.css`, `app/layout.tsx`, `app/page.tsx`, `app/dev/**`, `components/**`, `lib/dev/sample-catalog.ts`, `package.json`, `pnpm-lock.yaml`, `docs/PLAN.md`, `docs/HANDOFF.md`.
+**Files changed in Phase 03A:**
+- `.gitignore` (un-ignored `.env.example`)
+- `.env.example` (created template without secrets)
+- `package.json` & `pnpm-lock.yaml` (added `@supabase/ssr`, `@supabase/supabase-js`, `test` script)
+- `tsconfig.json` (enabled `allowImportingTsExtensions`)
+- `proxy.ts` (Next.js 16 proxy)
+- `lib/supabase/{config,client,server,proxy}.ts`
+- `lib/auth/{session,authorization,redirects}.ts`
+- `app/actions/auth.ts`
+- `app/page.tsx`
+- `app/access-pending/page.tsx`
+- `app/unauthorized/page.tsx`
+- `app/(protected)/{layout,dashboard/page}.tsx`
+- `components/login-form.tsx`
+- `components/ui/field.tsx`
+- `tests/{redirects,cookie-config,auth-validation}.test.ts`
+- `docs/PLAN.md` & `docs/HANDOFF.md`
 
-**Validation:** `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`, and `git diff --check` passed after the font and prerender corrections. The first sandboxed build could not spawn Next.js workers (`EPERM`); the elevated local build completed. A browser surface was unavailable, so no manual viewport or keyboard walkthrough was completed. No OBS or Facebook Live test was performed.
+## Validation results
 
-## Remaining work and exact next task
+- `pnpm lint`: Passed (0 errors, 0 warnings).
+- `pnpm exec tsc --noEmit`: Passed (0 errors).
+- `pnpm test`: Passed (12 tests passed, 0 failed).
+- `pnpm build`: Passed (Next.js 16 Turbopack production build succeeded, all static and dynamic routes compiled).
+- `git diff --check`: Passed (no whitespace or git diff errors).
+- Local HTTP route checks on port 3001:
+  - `GET /` -> 200 (Login page rendered, no preview warning)
+  - `GET /dashboard` -> 307 (Redirects unauthenticated user to `/`)
+  - `GET /access-pending` -> 307 (Redirects unauthenticated user to `/`)
+  - `GET /dev` -> 200 (Dev previews remain available in development)
 
-The UI is a prototype. Do not wire the login to the MVA production Auth project, expose real admin routes, persist matches, or replace fictional catalog data until the Auth session/cookie policy, scoreboard grants, restricted runtime identity, and approved migration are in place. Have the owner finish the protected-backup and migration approval gates in the [approval report](MIGRATION_APPROVAL_REPORT.md). The next frontend milestone is a manual desktop/mobile accessibility review of these previews (360, 390, 768, 1280, 1920 px) and an actual OBS transparency/resize review; then implement server Auth and protected routes only in a separately approved phase.
+## Cross-app cookie findings
 
-On continuation, inspect Git status and instructions. Do not push, merge, deploy, or modify MVA/production resources without explicit direction.
+- The scoreboard development server runs on `http://localhost:3001` while the main MVA application runs on `http://localhost:3000`.
+- Because web browsers scope cookies by hostname (`localhost`) and ignore TCP port numbers, standard Supabase Auth cookies (`sb-<project-ref>-auth-token`) are shared across all localhost ports for the same Supabase project reference.
+- Without isolation, signing in or logging out on port 3001 would overwrite or destroy the session on port 3000.
+- **Resolution implemented:** In `lib/supabase/config.ts`, the cookie name is configured as `sb-mva-scoreboard-auth-token` (configurable via `NEXT_PUBLIC_SUPABASE_COOKIE_NAME`). This ensures complete cookie isolation between the two applications during local development and preview environments.
 
-## Phase 02B results
+## Remaining blockers and next recommended task
 
-- Headless Chrome rendered the login, dashboard, match setup, and overlay at 360, 390, 768, 1280, and 1920 CSS pixels. Screenshots and DOM measurements showed no page-level horizontal overflow. The mobile navigation scrolls horizontally and keeps the active destination visible.
-- Browser interaction checks confirmed email/password labels and required fields, password show/hide state and `aria-pressed`, and visible focus outlines. Tab key events traversed the login fields, password control, submit button, and development preview link in order; at 390px they traversed all six mobile navigation links, the tournament select, and Continue. Tournament-dependent divisions, division-dependent teams, Team A exclusion from Team B options, and cleared team selections after a division change were verified. The form remains a no-auth preview.
-- The overlay body computed transparent at each width, and the page had no scroll overflow. Initials remained visible as logo placeholders. A synthetic 58-character team name truncated with ellipsis at 360px without widening the page. The original 710px graphic was clear at 1280×720 but too small when a 1920×1080 frame was reduced to 640px. The scorebug now grows to 960px with larger primary text on canvases at least 1536px wide. The Next.js development indicator is disabled to keep it out of captures.
-- OBS is unavailable on this machine, so actual Browser Source transparency composition, capture placement, resize, refresh, and Facebook playback remain **pending**. Browser computed transparency is not a substitute for that check. This preview cannot test realtime behavior.
-- Final validation passed: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build`, and `git -c safe.directory=C:/nextjs-projects/ts/mva-scoreboard diff --check`. The one-off Git safe-directory setting was needed because the repository is owned by the Windows Administrators group; no global Git configuration was changed. A local production server returned 200 for `/` and 404 for `/dev`, `/dev/matches/new`, and `/dev/overlay`.
-
-**Files changed in Phase 02B:** `next.config.ts`, `components/overlay-preview.tsx`, `app/globals.css`, `docs/PLAN.md`, and `docs/HANDOFF.md`. No Auth, API, database, or production MVA integration code changed.
-
-**Manual OBS checklist:** Start the local app with `pnpm dev --port 3001`; in OBS use a 1920×1080 canvas and add a Browser Source URL `http://localhost:3001/dev/overlay` with source width 1920 and height 1080. Put a colored or video source beneath it. Confirm the page outside the graphic is transparent, the graphic sits bottom-left, no scrollbar or framework badge appears, and refresh preserves placement. Repeat at Browser Source width 1280 and height 720. Record or view the full canvas at 640px width to judge team names, scores, sets, serve, and the preview warning at Facebook-like size. Substitute a long team name and omit a logo in a local preview fixture before final OBS sign-off. Never treat this `/dev` URL as a live overlay; it returns 404 in production.
-
-**Next implementation milestone:** Finish the owner-controlled migration/Auth approval gates already listed in the plan. The first application phase after separate authorization should establish verified sessions and protected admin routes with scoreboard-specific grants, before connecting the catalog or implementing live scoring.
+- The scoreboard schema candidate (`0001_scoreboard_foundation.mva_dev.review.sql`) has not been applied to `mva_dev` or production.
+- A current retained recovery point, owner approval of the shared target, and migration checksum verification remain required before applying the database migration.
+- Because the schema is not yet applied, all authenticated users currently fail closed to the `/access-pending` state.
+- **Next recommended task (Phase 03B):** Complete owner preflight checks, apply the reviewed scoreboard migration to `mva_dev`, provision the first active `ADMIN` role grant, and wire `lib/auth/authorization.ts` to query `scoreboard.role_grants` for runtime authorization.
