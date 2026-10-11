@@ -26,7 +26,7 @@ Do not start schema or Auth work until the MVA identity boundary and scoreboard 
 
 ## Immediate architectural blockers
 
-- Local `mva_dev` is PostgreSQL 18 without `auth` schema, while both repos configure the same external Supabase URL/key. Deployed Auth issuer, domain/session behavior, and shared-schema approval remain unconfirmed.
+- Local `mva_dev` is PostgreSQL 18 without `auth` schema. The owner confirms that the shared configured Supabase project is MVA's production Auth project, with Site URL `http://localhost:3000` and no additional Redirect URLs. The password-only scoreboard MVP needs no callback; reserve local port 3001. Deployed MVA issuer comparison and localhost cookie/session behavior still need review. See the [Auth redirect decision](ARCHITECTURE.md#owner-auth-redirect-decision).
 - MVA schema and `VERIFIED` filtering are verified in source. Proposed scheduling statuses and a restricted catalog endpoint need MVA owner approval and implementation.
 - The local target is identifiable and backup/restore procedure was tested, but a current retained recovery point, owner approval of the shared target and exact checksum, non-superuser runtime credential, and production rollout approval remain outstanding.
 - Proposed best-of-three and operational scoring defaults need MVA association approval; official FIVB rules are identified separately in the architecture review.
