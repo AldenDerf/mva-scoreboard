@@ -52,3 +52,20 @@ Before owner approval for execution: complete the Auth checklist; confirm this s
 `pnpm lint`, `pnpm exec tsc --noEmit`, and `git diff --check` passed. `pnpm build` failed because the unchanged `next/font/google` configuration could not fetch Geist and Geist Mono from Google Fonts in this environment. No typography change was made to mask the network failure.
 
 Phase 01H repeated these four checks with the same results. The new post-checker executed as read-only SQL on the unmigrated target; the target/MVA baseline checks passed and all expected absent-scoreboard checks failed. This is a syntax and negative-path check, not proof that the eventual post-migration state will pass.
+
+## Phase 03B preflight and backup readiness (2026-10-11)
+
+**Verdict: BLOCKED PENDING OWNER APPROVAL.** All preflight gates verified; stopped at approval boundary.
+
+- **Verified target:** PostgreSQL 18.0.3 on IPv6 loopback `[::1]:5432`, database `mva_dev`, cluster system identifier `7629597861964584196`. Confirmed not a production connection.
+- **Catalog status:** All MVA public tables (`leagues`, `league_categories`, `registrations`, `teams`, `admin_access`, etc.) are present. `scoreboard` schema and capability roles do not exist.
+- **Read-only pre-checker baseline:** Executed `db/verification/0001_mva_dev_post_read_only.sql`. Target identity and MVA baseline passed. All scoreboard checks failed as expected for an unmigrated target. Recorded MVA public definition fingerprint: SHA `c16708e4bf35a86e66c098a810108d0c` across 289 catalog entries.
+- **Migration candidate integrity:** SHA-256 of `db/migrations/0001_scoreboard_foundation.mva_dev.review.sql` recalculated and confirmed byte-identical to `508b1cb926500936c7c7aa84dc1a802bb11ad4b3c2b52045133294a50438f2b0`.
+- **Backup directory readiness:** Created `C:\mva-db-backups\`. Disabled NTFS inheritance; restricted ACL exclusively to `BUILTIN\Administrators` and `NT AUTHORITY\SYSTEM` (Full Control), removing broad `Users` access. Verified 86.4 GB available storage on drive `C:`.
+- **Approved retention policy:** 7 days following verified migration, provided recovery remains verified.
+- **Exact pre-migration backup command:**
+  ```powershell
+  & "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -h ::1 -p 5432 -U postgres -d mva_dev -Fc -f "C:\mva-db-backups\mva_dev_pre_migration_$(Get-Date -Format 'yyyyMMdd_HHmmss').dump"
+  ```
+  Followed by SHA-256 recording via `Get-FileHash -Algorithm SHA256` and archive verification via `pg_restore --list`.
+- **Stop condition enforced:** No migration applied. Awaiting separate, explicit owner authorization.
