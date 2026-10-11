@@ -90,3 +90,19 @@ Phase 01H repeated these four checks with the same results. The new post-checker
   - SHA-256: `508b1cb926500936c7c7aa84dc1a802bb11ad4b3c2b52045133294a50438f2b0` (enforced via `.gitattributes` LF normalization).
 - **Quality gates:** `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (12/12 passing), and `pnpm build` (Next.js 16 Turbopack production build) all passed cleanly.
 - **Stop condition enforced:** No migration executed. Awaiting explicit owner approval.
+
+## Phase 03D independent restore verification (2026-10-11)
+
+**Verdict: restore verified; migration execution remains blocked pending owner approval.** This pass did not execute the scoreboard migration anywhere.
+
+- The retained archive remains at `C:\mva-db-backups\mva_dev_pre_migration_20261011_205157.dump`, size 100,733 bytes. SHA-256 matched `ad03bb807d35d106f070b536a8474cc3a19b2b0ac207825098aa3df1924d543e` before and after the test. PostgreSQL 18 `pg_restore --list` succeeded. This pass counted 127 numbered TOC entries (including 13 TABLE DATA, 22 CONSTRAINT, 17 FK CONSTRAINT, and 30 INDEX entries); the Phase 03C report's 131-entry count was not reproduced. The archive contains the expected MVA tables, data, constraints, indexes, and row-security entries.
+- A fresh PostgreSQL 18 cluster was initialized under a task-specific temporary directory, bound only to `127.0.0.1:55434` with trust authentication for this isolated local rehearsal. Its system identifier was `7695404507456167744`, distinct from original `mva_dev` at `[::1]:5432`, identifier `7629597861964584196`. A fresh `mva_restore_03d` database used `template0`, UTF-8 encoding, and `C` locale. `pg_restore --exit-on-error` completed with exit code 0 and no reported warnings or errors. Ownership and grants were retained; no `--no-owner` or `--no-privileges` flags were used.
+- Read-only comparisons matched: two user schemas, 13 tables, 126 constraints, 52 indexes, 128 columns, and ownership/ACL digests for 14 relations and both schemas. Catalog digests included names and definitions. Per-table original/restored row counts: `private_app._prisma_migrations` 1/1, `private_app.invite_access` 2/2, `public.admin_access` 2/2, `public.admin_audit_logs` 180/180, `public.league_categories` 5/5, `public.leagues` 3/3, `public.payment_allocations` 70/70, `public.payments` 104/104, `public.players` 142/142, `public.profiles` 5/5, `public.registration_players` 129/129, `public.registrations` 20/20, `public.teams` 22/22. No mismatches were observed. These are point-in-time counts and catalog comparisons, not a byte-for-byte comparison of row values or a production recovery timing test.
+- The exact migration candidate remained unchanged; SHA-256 matched `508b1cb926500936c7c7aa84dc1a802bb11ad4b3c2b52045133294a50438f2b0`.
+- Before cleanup, the task checked the disposable cluster identifier, database name, and absolute temporary path. The server stopped, the task-created temporary directory was removed, port 55434 ceased responding, and original port 5432 remained available. The protected backup was not changed or removed.
+
+**NO SCOREBOARD MIGRATION EXECUTED — OWNER APPROVAL STILL REQUIRED.**
+
+### Phase 03D quality gates and handoff
+
+`pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (12/12), `pnpm build`, and `git diff --check` passed. The first sandboxed test and build attempts failed with Windows `spawn EPERM`; both passed when rerun with elevated execution. Node printed existing module-type warnings during tests. No application code was changed. Remaining gates are owner Auth review and explicit migration authorization; the restore proof does not authorize execution.
