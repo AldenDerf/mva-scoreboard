@@ -1,6 +1,6 @@
 # Phase 01G migration approval report — 2026-10-11
 
-**Verdict: BLOCKED.** This verification does not authorize execution. No scoreboard migration was applied to `mva_dev` or any production resource.
+**Verdict: BLOCKED.** Phase 01H prepared the post-checker and recovery procedure but did not create a retained backup or authorize execution. No scoreboard migration was applied to `mva_dev` or any production resource.
 
 ## Verified target and restore proof
 
@@ -13,20 +13,38 @@
 
 Both local repositories configure the same Supabase Auth URL and anon key. The public `/auth/v1/settings` endpoint responded HTTP 200, confirming that configured endpoint is reachable. Public settings did not expose issuer ownership, the project's production-user classification, or its redirect allowlist. The scoreboard's separate origin and refresh callback therefore remain unverified. The project owner must inspect the intended Supabase dashboard/project settings and confirm the project reference/issuer, whether production users are present, approved localhost scoreboard redirect URLs and Site URL behavior, and the no-public-signup policy. No Auth users or settings were changed. A matching Auth configuration gives identity only; active scoreboard `ADMIN`/`SCOREKEEPER` grants and match assignments remain separate authorization checks.
 
+### Phase 01H owner confirmation checklist
+
+**Verified locally:** The MVA and scoreboard `.env.local` files still have byte-identical Supabase Auth URLs and anon keys. A fresh read-only settings request returned HTTP 200 and no redirect-allowlist fields. The local PostgreSQL database has no Supabase `auth.users` table. These observations support a shared configured Auth endpoint, but do not prove dashboard ownership, deployed issuer, user population, or that the MVA deployment uses these local settings.
+
+The project owner must record, without copying keys or user lists into Git:
+
+1. The dashboard organization, project reference, and intended environment for the configured Auth URL; whether the MVA deployment and proposed scoreboard deployment resolve to that **same issuer**. Compare issuer/project identifiers through trusted deployment settings, not an email address or anon-key match alone.
+2. Whether the project contains production users or production sessions; who may approve reuse of those identities for local scoreboard development. Confirm no public self-registration is enabled for the intended workflow.
+3. The exact scoreboard local origin, login callback URL, password-recovery/email-link callback if used, and logout return URL; verify each is accepted by the project's Site URL/redirect allowlist and that the MVA application's existing redirects remain valid. No specific callback route is implemented yet, so do not invent or approve a placeholder URL.
+4. The intended session flow for the separate scoreboard origin: server-side validation of the current Supabase user against the approved issuer, audience/project and token expiry; secure same-origin session cookies and refresh; rejection of revoked/expired sessions. Establish the exact SDK/JWKS or verified-user-lookup method during Auth implementation. Never trust an unverified cookie payload, email, or user metadata for permissions.
+5. The owner of initial scoreboard `ADMIN` provisioning and the rule that a valid Auth identity has **zero** scoreboard privilege until an active scoreboard grant exists. Scoring additionally requires an active `SCOREKEEPER` grant and match assignment.
+
+Record who confirmed each item and when in the migration change record. No Auth settings or users were modified in Phase 01H.
+
 ## Exact migration under review
 
 - File: [`0001_scoreboard_foundation.mva_dev.review.sql`](../db/migrations/0001_scoreboard_foundation.mva_dev.review.sql)
 - SHA-256: `508b1cb926500936c7c7aa84dc1a802bb11ad4b3c2b52045133294a50438f2b0`
 - The guard requires database `mva_dev`, `::1`, port 5432, system identifier `7629597861964584196`, three MVA tables, and an absent `scoreboard` schema. Recompute and compare the entire file checksum immediately before any separately authorized execution. Any byte change requires renewed review.
 - Expected changes: new `scoreboard` schema; seven tables (`matches`, `match_configurations`, `match_sets`, `role_grants`, `scorekeeper_assignments`, `score_events`, `admin_audit_events`); 19 indexes; one overlay view; append-only history function and two triggers; forced RLS with no policies; explicit `PUBLIC` revokes; two cluster-wide NOLOGIN group roles with only the stated schema/view grants. No MVA `public` table, record, policy, trigger, or constraint is altered. No login/runtime role or mutation function is created.
-- The SQL is transactional and has no MVA destructive operation or cross-schema foreign key. `postgres` can bypass RLS, so it must remain a controlled migration identity. The candidate does not validate attributes of a pre-existing same-name capability role; current target inspection found neither role, but recheck before applying. The current read-only verification SQL targets the earlier isolated rehearsal database and needs a separately reviewed `mva_dev` variant for post-apply checks.
+- The SQL is transactional and has no MVA destructive operation or cross-schema foreign key. `postgres` can bypass RLS, so it must remain a controlled migration identity. The candidate does not validate attributes of a pre-existing same-name capability role; current target inspection found neither role, but recheck before applying. The Phase 01E verification SQL is for the isolated rehearsal database; use the newly prepared `mva_dev` checker after owner review.
+
+Phase 01H rehashed the unchanged candidate and confirmed the SHA-256 above. The new [`mva_dev` post-checker](../db/verification/0001_mva_dev_post_read_only.sql) uses a read-only transaction and checks target identity, seven tables, 103 constraints, 19 indexes, forced RLS, no policies, role attributes, explicit ACLs, overlay projection, append-only triggers, and the 13-table MVA inventory. It also emits a fingerprint of MVA public table definitions for comparison with a pre-migration capture. It was parsed and run against the **unmigrated** `mva_dev`: identity and MVA inventory passed; scoreboard checks failed as expected. The post-migration positive path has not been executed.
 
 ## Rollback and remaining gates
 
 A failed migration transaction rolls back. If a successful foundation apply must be reversed while the new schema is empty and unreferenced, review a scoped change to revoke its grants and remove **only** its new schema/roles after checking dependencies and a fresh backup. Once match or audit history exists, use a forward correction or tested backup restore; do not blindly drop history or any MVA object. The restore test above did not rehearse owner/ACL recovery or production recovery timing.
 
-Before owner approval for execution: confirm the Auth project and redirect allowlist; confirm this shared local cluster has no production workload and approve the two cluster-wide roles; retain a fresh access-restricted backup with a tested recovery path; review a target-specific post-migration verification script; and approve the exact checksum. Before application runtime, separately provision and test a non-superuser, `NOBYPASSRLS` login and narrowly scoped transaction functions. No permission to execute the migration follows from this report.
+Before owner approval for execution: complete the Auth checklist; confirm this shared local cluster has no production workload and approve the two cluster-wide roles; review the new checker; choose and document the protected recovery directory, custodian, retention date, and restore owner; create and retain a fresh backup immediately before execution; capture the pre-migration MVA definition fingerprint; and approve the exact checksum. The prior restore rehearsal proves the archive process but does not provide a current recovery point. Before application runtime, separately provision and test a non-superuser, `NOBYPASSRLS` login and narrowly scoped transaction functions. No permission to execute the migration follows from this report.
 
 ## Project validation
 
 `pnpm lint`, `pnpm exec tsc --noEmit`, and `git diff --check` passed. `pnpm build` failed because the unchanged `next/font/google` configuration could not fetch Geist and Geist Mono from Google Fonts in this environment. No typography change was made to mask the network failure.
+
+Phase 01H repeated these four checks with the same results. The new post-checker executed as read-only SQL on the unmigrated target; the target/MVA baseline checks passed and all expected absent-scoreboard checks failed. This is a syntax and negative-path check, not proof that the eventual post-migration state will pass.
