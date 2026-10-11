@@ -1,43 +1,11 @@
-# Agent handoff — Phase 03C: Protected Backup and Migration Readiness
+# Agent handoff — Phase 03D: Independent Database Restore Verification
 
-**Branch:** `feat/phase-03c-backup-migration-readiness`. **Base HEAD:** `bcda07338ba4cf7cf08aeb8bf5f1bc0ad8866504` (Phase 03B merge into `main`). **Latest HEAD:** run `git rev-parse HEAD` for the current commit. **Database/Auth status:** zero migrations applied; no database changes; no Auth user/configuration changes made. Readiness verification completed; fresh protected backup created and verified in `C:\mva-db-backups\`; stopped at approval boundary pending explicit owner authorization.
+**Branch:** `docs/phase-03d-independent-restore-verification`. **Base:** `1ddd7b9b838573e224d391fe9eaaed9b22eb5e19` on updated `main`. **Status:** retained backup restore verified; no scoreboard migration executed; owner approval still required.
 
-## Implemented and Verified in Phase 03C
+The protected 100,733-byte backup matched SHA-256 `ad03bb807d35d106f070b536a8474cc3a19b2b0ac207825098aa3df1924d543e`. PostgreSQL 18 parsed it and restored it into a new UTF-8 database on a separate disposable cluster at `127.0.0.1:55434` (identifier `7695404507456167744`). Original `mva_dev` remained at `[::1]:5432` (identifier `7629597861964584196`) and was queried read-only. The restore had no errors or warnings. Thirteen per-table row counts and digests of schemas, table inventory, constraints, indexes, columns, owners, and ACLs matched. See [MIGRATION_APPROVAL_REPORT.md](MIGRATION_APPROVAL_REPORT.md#phase-03d-independent-restore-verification-2026-10-11) for counts and limits. The disposable cluster was stopped and removed; port 55434 no longer responded. The protected archive remained intact with the same hash. The migration candidate SHA-256 remained `508b1cb926500936c7c7aa84dc1a802bb11ad4b3c2b52045133294a50438f2b0`.
 
-- **Target database verification:** Connected to local PostgreSQL 18.0.3 on IPv6 loopback `[::1]:5432`, database `mva_dev`. Verified system identifier `7629597861964584196` matches documented preflight. Confirmed local development target (not production).
-- **Protected backup created & verified:**
-  - File: `C:\mva-db-backups\mva_dev_pre_migration_20261011_205157.dump`
-  - Size: 100,733 bytes (non-empty)
-  - SHA-256: `ad03bb807d35d106f070b536a8474cc3a19b2b0ac207825098aa3df1924d543e`
-  - Archive verification: `pg_restore --list` successfully parsed all 131 TOC entries without errors.
-  - Retention location: `C:\mva-db-backups\` (restricted ACLs: Administrators & SYSTEM only).
-- **Migration candidate integrity & LF normalization:**
-  - Added `.gitattributes` (`*.sql text eol=lf`) to enforce LF line endings across platforms.
-  - SHA-256 for `db/migrations/0001_scoreboard_foundation.mva_dev.review.sql`:
-    `508b1cb926500936c7c7aa84dc1a802bb11ad4b3c2b52045133294a50438f2b0` (exact byte match).
-- **Baseline post-checker execution:**
-  - Executed `db/verification/0001_mva_dev_post_read_only.sql` in read-only transaction.
-  - Identity and MVA inventory baseline passed.
-  - All 9 scoreboard-specific checks failed as expected for an unmigrated database.
-  - Recorded MVA definition fingerprint: SHA `c16708e4bf35a86e66c098a810108d0c` across 289 catalog entries.
-- **Validation results:**
-  - `pnpm lint`: Passed (0 errors, 0 warnings).
-  - `pnpm exec tsc --noEmit`: Passed (0 errors).
-  - `pnpm test`: Passed (12/12 unit tests passing).
-  - `pnpm build`: Passed (Next.js 16 Turbopack production build succeeded).
-  - `git diff --check`: Passed.
-- **Stop condition enforced:** No migration executed. Work halted at approval boundary.
+**Next action:** Owner reviews the Auth and migration gates in the approval report and explicitly authorizes the exact migration candidate before any apply. Recheck target identity, baseline, backup, and checksum at that change window. Do not run the migration based on this restore proof alone.
 
-## Next Action — Owner Migration Approval
+**NO SCOREBOARD MIGRATION EXECUTED — OWNER APPROVAL STILL REQUIRED.**
 
-The database and backup are fully prepared. To apply the foundation migration to `mva_dev`, execute:
-
-```powershell
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h ::1 -p 5432 -U postgres -d mva_dev -v ON_ERROR_STOP=1 -f "db/migrations/0001_scoreboard_foundation.mva_dev.review.sql"
-```
-
-Followed immediately by verification:
-```powershell
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h ::1 -p 5432 -U postgres -d mva_dev -f "db/verification/0001_mva_dev_post_read_only.sql"
-```
-Require `all_checks_pass = t` and public schema fingerprint SHA equal to `c16708e4bf35a86e66c098a810108d0c`.
+Quality gates: lint, TypeScript, 12 tests, build, and diff check passed. Initial sandboxed test/build runs hit spawn EPERM; elevated reruns passed. Modified files: docs/PLAN.md, docs/HANDOFF.md, docs/MIGRATION_APPROVAL_REPORT.md. No application code or SQL changed. No OBS/Facebook Live test was performed.
