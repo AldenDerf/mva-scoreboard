@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --surface: #f8faff;
+  --paper: #ffffff;
+  --ink: #101f3a;
+  --muted: #63718a;
+  --border: #dfe5ef;
+  --subtle: #f1f5fb;
+  --blue: #2455cf;
+  --blue-hover: #1b44ad;
+  --navy: #071735;
+  --focus: #6da4ff;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--surface);
+  --color-foreground: var(--ink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+* { box-sizing: border-box; }
+html { min-width: 320px; }
+body { margin: 0; min-height: 100vh; background: var(--surface); color: var(--ink); font-family: var(--font-geist-sans), Arial, sans-serif; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.tabular { font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: .69rem; font-weight: 700; letter-spacing: .18em; line-height: 1.4; }
+.court-lines { background: linear-gradient(90deg, transparent 9%, #ffffff0c 9.15%, transparent 9.3%, transparent 89%, #ffffff0c 89.15%, transparent 89.3%), linear-gradient(0deg, transparent 25%, #ffffff0c 25.15%, transparent 25.3%, transparent 74%, #ffffff0c 74.15%, transparent 74.3%), radial-gradient(circle at 78% 58%, #2863cf38, transparent 40%); }
+
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  :root { color-scheme: dark; --surface: #0c1424; --paper: #111e32; --ink: #f1f5ff; --muted: #a4b2c8; --border: #293a55; --subtle: #17263e; --blue: #82aaff; --blue-hover: #a8c3ff; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+html:has(.overlay-preview), body:has(.overlay-preview) { background: transparent !important; overflow: hidden; }
+@media (min-width: 1536px) {
+  .overlay-scorebug { max-width: 960px; }
+  .overlay-head { padding: 12px 32px; }
+  .overlay-event { font-size: 14px; }
+  .overlay-preview-label, .overlay-columns, .overlay-foot { font-size: 12px; }
+  .overlay-columns, .overlay-team-row { grid-template-columns: minmax(0, 1fr) 90px 120px; padding-left: 32px; padding-right: 32px; }
+  .overlay-team-row { padding-top: 12px; padding-bottom: 12px; }
+  .overlay-logo { width: 64px; height: 64px; font-size: 16px; }
+  .overlay-team-name { font-size: 30px; }
+  .overlay-serving { font-size: 14px; }
+  .overlay-sets { font-size: 30px; }
+  .overlay-points { font-size: 60px; }
+  .overlay-foot { padding-left: 32px; padding-right: 32px; }
 }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
