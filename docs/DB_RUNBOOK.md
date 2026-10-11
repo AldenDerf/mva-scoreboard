@@ -1,6 +1,6 @@
 # Phase 01D database preflight and migration runbook
 
-**Prepared, not applied.** `db/migrations/0001_scoreboard_foundation.sql` is review-only SQL for a disposable/nonproduction clone named `mva_dev`. It has never been executed by this task. The read-only verification file is `db/verification/0001_read_only.sql`. Never point the migration at production without a separate reviewed plan and authorization.
+**Rehearsed only in isolation.** `db/migrations/0001_scoreboard_foundation.sql` now accepts only `mva_scoreboard_rehearsal`. It was applied, rolled back, and reapplied in a temporary PostgreSQL 18 cluster on loopback port 55432, then that cluster was removed. It has **never** been run on `mva_dev` or production. The read-only verification file is `db/verification/0001_read_only.sql`. A future nonproduction MVA target needs a separately reviewed guard change and approval.
 
 ## Verified local environment (2026-10-11)
 
@@ -19,7 +19,7 @@
 ## Planned order (future approved execution only)
 
 1. Backup and record a restore point in the disposable target. Run read-only preflight; capture existing MVA object inventory without private rows.
-2. Apply `0001_scoreboard_foundation.sql` as one transaction. It refuses a database other than `mva_dev` or an existing `scoreboard` schema. It creates isolated tables, indexes, default-deny RLS, append-only triggers, a minimal overlay view, and NOLOGIN capability roles. It grants no mutation path. It creates no Auth users and changes no MVA table/RLS policy.
+2. Apply `0001_scoreboard_foundation.sql` as one transaction. Its current guard refuses any database other than `mva_scoreboard_rehearsal` or an existing `scoreboard` schema. It creates isolated tables, indexes, default-deny RLS, append-only triggers, a minimal overlay view, and NOLOGIN capability roles. It grants no mutation path. It creates no Auth users and changes no MVA table/RLS policy.
 3. Run `0001_read_only.sql`; verify schema/table inventory, RLS flags, expected grants, and MVA tables still present. Examine the migration ledger/outcome manually; this repo has no migration runner yet.
 4. In a later migration, after reviewing exact server authorization and SQL transaction functions, grant a separate runtime role only `EXECUTE` on vetted functions and grant the overlay-serving role only the public view. Runtime roles must be tested without superuser privileges. No anonymous connection should receive base-table access.
 5. Seed synthetic matches and test role revocation, unassigned-match denial, duplicate idempotency keys, stale revisions, audit immutability, and overlay field allowlist before any application wiring.
@@ -31,6 +31,20 @@ The foundation migration inserts **no** role grants. After a non-superuser autho
 ## Rollback and data safety
 
 The migration is additive and transactional: a failed transaction rolls itself back. If the schema is **empty and unreferenced**, a separately reviewed rollback may revoke dependent grants and drop only `scoreboard` objects after confirming object ownership and a backup. This runbook deliberately contains no executable drop command. Once score/audit events or real matches exist, dropping the schema loses history; prefer a forward corrective migration or tested point-in-time restore. Never drop or alter `public` MVA tables, `auth` objects, or external Supabase users as part of scoreboard rollback.
+
+## Phase 01E isolated rehearsal results
+
+The temporary cluster had a distinct PostgreSQL system identifier from the original MVA server, listened only on `127.0.0.1:55432`, and initially contained no `mva_dev` or MVA tables. A fresh `mva_scoreboard_rehearsal` database was created there. The SQL review found no Supabase-specific schema, claim, extension, or FK dependency: it uses PostgreSQL `gen_random_uuid()` (available in the test server), plain UUIDs for external Auth/MVA identities, and standard PostgreSQL RLS. The only destructive statement is `REVOKE`; no drop/alter of MVA objects appears. The migration does create two cluster-wide NOLOGIN roles, which is why a separate cluster was used.
+
+The first apply passed. Catalog checks found 7 tables, 19 indexes, forced RLS on all 7 tables, zero policies (default deny), one overlay view, and 103 constraints (including system-generated non-null constraints). `scoreboard_overlay_reader` had view SELECT but no base-table SELECT; `scoreboard_server` had no INSERT on matches. The view exposed only `public_id`, tournament/division/team names and logos, status, set/serve/revision, and set score JSON.
+
+Three temporary LOGIN roles were created **only in the isolated cluster** to test actual non-superuser sessions. Anonymous SELECT/INSERT, overlay base-table SELECT/UPDATE and audit UPDATE, and server base-table SELECT/INSERT, grant UPDATE, and event DELETE were denied with SQLSTATE `42501`. Overlay view SELECT returned one synthetic match with a 3–2 synthetic set. An attempted audit UPDATE as owner was blocked by the append-only trigger (`P0001`). No Auth session or scoring transaction was exercised.
+
+Rollback was rehearsed after checking the exact test database, port, system identifier, absence of MVA tables, and expected object count. Only the rehearsal `scoreboard` schema and temporary roles were removed; the deliberately synthetic match was discarded. Checks found zero remaining schema/roles. Reapplication created all 7 tables and both NOLOGIN roles again. The updated read-only verification SQL passed, including database/port and absence-of-MVA checks. The temporary cluster was stopped, port 55432 refused connections, and its data directory was removed. A final read-only check found the original `mva_dev` on its original system identifier with MVA tables present and no `scoreboard` schema. This validates a **disposable, synthetic-data rollback**, not a data-preserving production rollback.
+
+### Safety correction from Phase 01D
+
+Phase 01D SQL was guarded for `mva_dev`, which would have prevented isolated rehearsal. Phase 01E changed the guard to `mva_scoreboard_rehearsal` before execution. This artifact now cannot apply to `mva_dev` without an explicit reviewed edit. The verification SQL was likewise updated to expect no MVA tables in the isolated cluster. No other migration SQL correction was required by the rehearsal.
 
 ## Authorization and contract verification
 

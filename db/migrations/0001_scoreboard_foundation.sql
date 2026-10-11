@@ -1,9 +1,11 @@
 -- REVIEW ONLY. Do not apply without the preflight in docs/DB_RUNBOOK.md.
--- Target: disposable/nonproduction mva_dev PostgreSQL 18; no Supabase auth schema assumed.
+-- Target: isolated PostgreSQL 18 rehearsal database only; no Supabase auth schema assumed.
 BEGIN;
 
 DO $$ BEGIN
-  IF current_database() <> 'mva_dev' THEN RAISE EXCEPTION 'Expected mva_dev'; END IF;
+  IF current_database() <> 'mva_scoreboard_rehearsal' THEN
+    RAISE EXCEPTION 'Expected isolated mva_scoreboard_rehearsal database';
+  END IF;
   IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'scoreboard') THEN
     RAISE EXCEPTION 'scoreboard schema already exists; stop and review drift';
   END IF;
