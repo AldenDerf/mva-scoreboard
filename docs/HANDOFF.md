@@ -1,28 +1,26 @@
-# Agent handoff — Phase 01E isolated database rehearsal
+# Agent handoff — Phase 01F development preflight
 
-**Branch:** `docs/phase-01a-architecture`. **Base HEAD:** `51c1abef24cc8cc972c9f3e24f7f141caab32a61`. **Latest HEAD:** the Phase 01E commit containing this file; run `git rev-parse HEAD` for the exact SHA. **Phase:** 01E rehearsal completed; no application implementation.
+**Branch:** `docs/phase-01a-architecture`. **Base HEAD:** `c3bdc6ea2528f69acad299c2bc4c07471aee6e9c`. **Latest HEAD:** the Phase 01F commit containing this file; run `git rev-parse HEAD` for its exact SHA. **Status:** `mva_dev` not migrated; no runtime/Auth feature implemented.
 
 ## Completed
 
-- Read project instructions and reviewed the Phase 01D SQL/runbook. Changed the migration guard from `mva_dev` to `mva_scoreboard_rehearsal` so the artifact cannot run against the original database.
-- Initialized a separate temporary PostgreSQL 18 cluster listening only on loopback port 55432. Its system identifier differed from the MVA server on port 5432, and it contained no MVA data. Created a fresh `mva_scoreboard_rehearsal` database there.
-- Applied the migration, tested catalog structure, RLS/grants, a synthetic overlay projection, non-superuser denials, and append-only audit. Rolled back the rehearsal schema/roles, verified cleanup, and reapplied successfully. Ran the updated read-only verification SQL.
-- Stopped the temporary server, verified port 55432 closed, and removed its data directory. A final read-only query confirmed original `mva_dev` still has MVA tables and no `scoreboard` schema on its unchanged system identifier.
+- Verified the local `.env.local` database and Auth configuration without exposing values. Read-only SQL confirmed loopback `mva_dev` on PostgreSQL 18, original cluster identifier `7629597861964584196`, MVA tables present, and `scoreboard` absent. The connected `postgres` role is superuser and bypasses RLS.
+- Confirmed the scoreboard and MVA local env files use the same Supabase URL and anon key; the Auth settings endpoint returned HTTP 200. Project environment classification, owner, users, and redirect allowlist were **not** verified.
+- Created a [review-only guarded `mva_dev` migration candidate](../db/migrations/0001_scoreboard_foundation.mva_dev.review.sql), keeping the isolated rehearsal migration unchanged. Its checksum, expected impact, backup gate, authorization design, and exact target checks are in [DEV_PREFLIGHT.md](DEV_PREFLIGHT.md).
+- Updated [architecture](ARCHITECTURE.md), [runbook](DB_RUNBOOK.md), and [plan](PLAN.md). No MVA repository file, database object, Auth user, or application feature was changed.
 
-**Files changed:** `db/migrations/0001_scoreboard_foundation.sql`, `db/verification/0001_read_only.sql`, `docs/DB_RUNBOOK.md`, `docs/PLAN.md`, `docs/HANDOFF.md`.
+**Files changed:** `db/migrations/0001_scoreboard_foundation.mva_dev.review.sql`, `docs/DEV_PREFLIGHT.md`, `docs/ARCHITECTURE.md`, `docs/DB_RUNBOOK.md`, `docs/PLAN.md`, `docs/HANDOFF.md`.
 
-**Validation:** `pnpm lint`, `pnpm exec tsc --noEmit`, and `git diff --check` passed. `pnpm build` failed while the unchanged starter layout tried to download Geist and Geist Mono from Google Fonts. Database details are in [runbook](DB_RUNBOOK.md#phase-01e-isolated-rehearsal-results). No Supabase Auth session, real score mutation, Realtime, browser, OBS, or Facebook Live test was performed.
+**Validation:** `pnpm lint`, `pnpm exec tsc --noEmit`, and `git diff --check` passed. `pnpm build` failed while the unchanged starter layout fetched Geist and Geist Mono from Google Fonts. Candidate comparison confirmed only the header and target guard differ from the rehearsed SQL. A final read-only query found actual server address `::1`, which was incorporated into the candidate guard and checksum. The DB queries were `BEGIN READ ONLY`; the Auth settings request was read-only. Neither migration file was executed in Phase 01F.
 
-## Findings and limits
+## Blockers
 
-The SQL needs no Supabase-only `auth` schema, claims, extension, or foreign key. In the isolated cluster it created 7 tables, 19 indexes, forced RLS on all 7, zero allow policies, one projection view, and 2 NOLOGIN roles. Real non-superuser test logins were denied base-table reads/writes; the overlay role read only the projection. The audit trigger denied UPDATE. Rollback/reapply succeeded with synthetic data. This **does not** prove safe production rollback or validate an eventual runtime scoring function.
-
-The migration is now guarded for the rehearsal database only. A later deployment migration must be reviewed and retargeted after owner approval; do not simply remove its guard. The current `.env.local` still points to the MVA `mva_dev` superuser and must not be used by the scoreboard runtime. MVA catalog API, live Auth issuer/redirect behavior, owner-approved league/scoring policy, non-superuser runtime credential, mutation transaction design, and retention/backups remain blockers. Google Fonts access may still prevent `pnpm build` in this environment.
+No verified secure backup/restore point exists for `mva_dev`. Auth project environment ownership and login redirects are unknown. The candidate checksum has not been owner-approved. No least-privilege runtime login or transactional function boundary exists; the current `postgres` URL must remain out of runtime code. The MVA catalog endpoint and tournament/scoring policy also need owner approval. The Google Fonts download may continue to block `pnpm build`.
 
 ## Exact next task
 
-Implement a bounded Auth/database foundation **only after** confirming the intended nonproduction target and MVA owner approvals: establish a least-privilege runtime login and reviewed transactional mutation boundary, verify Supabase sessions against the actual issuer, then test scoreboard-specific role/assignment enforcement. Keep `mva_dev` and production untouched until separately authorized.
+Obtain owner verification of the Auth project and approved redirect URLs, create and restore-test a secure development backup, then request **separate explicit approval** for applying the exact candidate migration checksum to `mva_dev`. After that approval, execute with read-only pre/post checks, then implement and test a non-superuser runtime role and server Auth boundary. Do not silently substitute the rehearsal SQL or remove the candidate identity guard.
 
 ## Continuation rules
 
-Inspect Git status/recent commits; read `AGENTS.md`, `docs/UI_UX_GUIDELINES.md`, `docs/PLAN.md`, this handoff, and the runbook. Preserve others' changes, commit focused Conventional Commits, and do not merge, push, deploy, or modify production/MVA resources without explicit direction.
+Inspect Git status/recent commits; read `AGENTS.md`, `docs/UI_UX_GUIDELINES.md`, `docs/PLAN.md`, this handoff, and the preflight/runbook. Preserve others' changes, commit focused Conventional Commits, and do not merge, push, deploy, or modify production/MVA resources without explicit direction.

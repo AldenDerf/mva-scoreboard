@@ -57,3 +57,7 @@ Phase 01D SQL was guarded for `mva_dev`, which would have prevented isolated reh
 ## Environment and build notes
 
 The current `.env.local` variables are `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY`; no scoreboard runtime credential or MVA catalog credential is defined. Do not invent values or commit `.env*`. A separate Google Fonts connectivity check still fails in this host; `pnpm build` must be reported independently from lint and typecheck. A network-enabled build or a separately reviewed local Geist font change is the reproducible path.
+
+## Phase 01F `mva_dev` candidate — not approved or applied
+
+See [preflight report](DEV_PREFLIGHT.md) and [review-only candidate SQL](../db/migrations/0001_scoreboard_foundation.mva_dev.review.sql). The candidate preserves the Phase 01E rehearsal file and differs in its header and target guard only. It checks database `mva_dev`, observed IPv6 loopback `::1`, port 5432, cluster identifier `7629597861964584196`, expected MVA tables, and absence of the `scoreboard` schema. The candidate checksum and backup/restore gates are recorded in the preflight report. It must **not** be executed under this phase's authorization. The existing verification SQL is for the isolated rehearsal target and must be adapted/reviewed before `mva_dev` execution.
