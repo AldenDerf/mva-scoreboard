@@ -1,6 +1,6 @@
 # MVA Live Scoreboard implementation plan
 
-**Current phase:** 01A, documentation and architecture. **Product status:** In Development. This plan records proposals, not implemented features. See [architecture review](ARCHITECTURE.md) for boundaries and open decisions.
+**Current phase:** 01B architecture verification (documentation only). **Product status:** In Development. This plan records proposals, not implemented features. See [architecture review](ARCHITECTURE.md) for verified MVA source findings and open decisions.
 
 ## Sequence and gates
 
@@ -9,7 +9,7 @@ Do not start schema or Auth work until the MVA identity boundary and scoreboard 
 | Phase | Objective and deliverables | Dependencies and blockers | Acceptance criteria | Testing expectations | Status |
 | --- | --- | --- | --- | --- | --- |
 | **01A — Documentation and architecture** | Replace starter README; roadmap, handoff, architecture and guideline review. | Repository and installed stack inspection. | Docs distinguish proposals from implementation, identify decisions, and provide next action. | Lint, TypeScript, build, diff check; record environmental failures. | **Completed** (build limited by network). |
-| **01B — Database and Auth foundation** | Reviewed schema/migration and rollback plan; Supabase Auth session handling, roles, grants, server authorization foundation; environment example. | Decide identity reuse, project isolation, grant administrators, audit retention, migration target. Production changes need explicit approval. | No self-registration; unauthorized mutation denied; credentials server-only; migrations reversible in target environment. | Auth, role/assignment, RLS or equivalent denial, migration/rollback tests; lint/type/build. | Not Started |
+| **01B — Architecture verification, then database and Auth foundation** | Verified MVA source contracts and documented schema, authorization, scoring, and integration proposals; subsequent bounded task: reviewed migration/rollback plan and Auth foundation. | Confirm deployed Auth project and identity sharing, approve MVA restricted read contract and league-status policy, decide isolation, grant administrators, retention, and migration target. Production changes need explicit approval. | Documentation names verified facts and unresolved decisions; later implementation has no self-registration, denies unauthorized mutation, and keeps credentials server-only. | Source review and lint/type/build for this documentation task; later Auth, role/assignment, RLS or equivalent denial, migration/rollback tests. | **In Progress** — verification complete; implementation not started. |
 | **01C — Application shell and admin UI** | Accessible sign-in and admin navigation, shared primitives and screen states. | 01B identity and UI guidelines. | Responsive mobile/desktop shell with loading, empty, and error states; no dead controls. | Keyboard, focus, contrast, 360–1920 px browser review; lint/type/build. | Not Started |
 | **02 — MVA integration** | Secure read-only catalog for tournaments, divisions, eligible teams and official logos; dependent selection UI. | Verified MVA schema/API, eligibility policy, credentials and logo allowlist; 01B–01C. | Only eligible teams selectable, no unrelated MVA data in responses, missing logos handled. | Contract and authorization tests, changed upstream selection, invalid logos, empty states. | Not Started |
 | **03 — Match management** | Create matches, configure best-of rules, assign scorekeepers, manage upcoming/live/completed lifecycle. | 01B, 02, approved rule defaults and admin policy. | Distinct eligible teams; immutable setup snapshot; authorized lifecycle actions audited and confirmed when high impact. | Server validation and role tests, lifecycle transitions, phone/desktop UI. | Not Started |
@@ -19,9 +19,9 @@ Do not start schema or Auth work until the MVA identity boundary and scoreboard 
 
 ## Immediate architectural blockers
 
-- MVA Auth architecture and whether identities can be safely reused are unknown.
-- Actual MVA table relationships, eligibility statuses, and narrow read interface are unverified.
+- MVA source uses Supabase SSR plus separate active ADMIN grants; deployed Auth project, domains, and safe identity reuse remain unconfirmed.
+- MVA schema relationships and `VERIFIED` public-directory filtering are verified in source. League-status scheduling policy and narrow machine-to-machine API remain unapproved/unimplemented.
 - Supabase project ownership, migration target, and environment separation are undecided.
 - Rule defaults, correction/reopen policy, and retention periods need product review.
 
-**Next bounded task:** Phase 01B design review: verify Auth and MVA integration facts with authorized source access, decide scoreboard isolation, and write a reviewed schema/authorization plan before any migration.
+**Next bounded task:** Phase 01B implementation planning: confirm deployed Auth and MVA integration ownership, approve scoreboard isolation and eligibility policy, then produce a migration/rollback plan for a nonproduction target before any schema change.

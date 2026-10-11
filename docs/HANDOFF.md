@@ -1,24 +1,24 @@
-# Agent handoff — Phase 01A
+# Agent handoff — Phase 01B architecture verification
 
-**Current phase:** 01A documentation and architecture. **Branch:** `docs/phase-01a-architecture`. **Base commit before Phase 01A:** `798d702` (`feat: update Agents.md and added UI_UC_GUIDELINES.md`). **Latest commit:** the Phase 01A documentation commit containing this handoff; run `git log -1 --oneline` for its exact hash.
+**Current phase:** 01B verification complete; application foundation not started. **Branch:** `docs/phase-01a-architecture`. **Base HEAD for this task:** `d6cab34329346a440a2425064f0960d616b0e0ca`. **Latest commit:** the Phase 01B documentation commit containing this handoff; run `git log -1 --oneline` for its exact hash.
 
 ## Completed work
 
-- Replaced the default README with project, status, setup, contribution, and intended OBS workflow documentation.
-- Added [roadmap](PLAN.md) and [architecture review](ARCHITECTURE.md), including unverified assumptions and decisions required before implementation.
-- Reviewed `AGENTS.md` and `UI_UX_GUIDELINES.md` for consistency; no edits needed. The generated Next.js block remains intact.
+- Inspected the local MVA checkout read-only at `7be8559`, including Supabase SSR auth, active admin grants, Prisma schema, and tournament/team queries. No MVA files were changed.
+- Documented verified MVA source findings, a proposed restricted catalog contract, scoreboard data model, authorization, scoring policy, and OBS synchronization in [architecture review](ARCHITECTURE.md).
+- Updated [roadmap](PLAN.md) with the Phase 01B verification state and gates.
 
-**Files modified:** `README.md`, `docs/PLAN.md`, `docs/ARCHITECTURE.md`, `docs/HANDOFF.md`.
+**Files modified in this task:** `docs/PLAN.md`, `docs/ARCHITECTURE.md`, `docs/HANDOFF.md`.
 
-**Validation:** `pnpm lint`, `pnpm exec tsc --noEmit`, and `git diff --check` passed. `pnpm build` failed because the existing starter `app/layout.tsx` requests Geist and Geist Mono from Google Fonts and this environment cannot reach `fonts.googleapis.com`; no application code changed in this phase. No browser, OBS, Facebook Live, Auth, or realtime tests were performed.
+**Validation:** `pnpm lint`, `pnpm exec tsc --noEmit`, and `git diff --check` passed. `pnpm build` failed on the existing starter `app/layout.tsx` Geist and Geist Mono downloads from Google Fonts. A separate HEAD request to Google Fonts failed with a closed connection, supporting a host network limitation; exact network cause remains unconfirmed. No browser, OBS, Facebook Live, Auth, database, or realtime tests were performed.
 
 ## Known issues and blockers
 
-The app still renders the Next.js starter page. There is no implemented Supabase configuration, database schema, MVA read contract, scorekeeping, or overlay. MVA Auth boundaries, schema/eligibility, scoreboard project isolation, rules defaults, correction policy, and deployment targets are unconfirmed. See [architecture review](ARCHITECTURE.md#decisions-required-before-implementation).
+The app still renders the Next.js starter page. No scoreboard Auth, schema, MVA API, scoring, or overlay exists. MVA source confirms its table relations and `VERIFIED` public team filtering, but deployed Auth/project state, approved scheduling statuses, restricted read endpoint, scoreboard isolation, grant administrator, rule variants, correction policy, retention, and deployment targets remain undecided. See [architecture review](ARCHITECTURE.md#decisions-required-before-implementation).
 
 ## Next task
 
-Begin Phase 01B with a fact-finding design review. Verify the real MVA Auth and catalog contracts through authorized read-only access, decide scoreboard-specific roles and environment isolation, then prepare a schema and migration/rollback proposal. Do not run production migrations from this handoff.
+Begin the next bounded Phase 01B milestone by confirming the deployed Auth issuer and MVA API owner, approving the scoreboard role and eligibility policies, and writing a nonproduction schema migration/rollback plan. Do not run production migrations from this handoff.
 
 ## Codex / Antigravity continuation rules
 
