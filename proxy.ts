@@ -1,4 +1,4 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
 /**
@@ -6,6 +6,10 @@ import { updateSession } from "@/lib/supabase/proxy";
  * Updates and refreshes the Supabase authentication session.
  */
 export async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/overlay/") ||
+      request.nextUrl.pathname.startsWith("/api/overlay/")) {
+    return NextResponse.next();
+  }
   return await updateSession(request);
 }
 

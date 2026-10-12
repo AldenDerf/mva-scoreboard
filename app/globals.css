@@ -37,6 +37,7 @@ button:disabled { cursor: not-allowed; }
 }
 
 html:has(.overlay-preview), body:has(.overlay-preview) { background: transparent !important; overflow: hidden; }
+html:has(.live-overlay), body:has(.live-overlay) { background: transparent !important; overflow: hidden; }
 @media (min-width: 1536px) {
   .overlay-scorebug { max-width: 960px; }
   .overlay-head { padding: 12px 32px; }

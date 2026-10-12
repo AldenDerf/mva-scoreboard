@@ -2,6 +2,7 @@ import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { requireScoreboardAuth } from "@/lib/auth/authorization";
 import { signOutAction } from "@/app/actions/auth";
+import Link from "next/link";
 
 export const instant = false;
 
@@ -52,9 +53,9 @@ export default async function DashboardPage() {
             <span className="font-semibold">{auth.role}</span>.
           </div>
           <p className="mt-4 text-sm text-[var(--muted)]">
-            Match management and scoring engines will be connected following
-            database schema provisioning in Phase 03B.
+            Open your authorized matches. Scoring is available only after the restricted database runtime and role grants are approved and configured.
           </p>
+          <Link href="/matches" className="mt-5 inline-flex min-h-12 items-center rounded-xl bg-[#2455cf] px-6 font-bold text-white">Open matches</Link>
         </div>
       </main>
     </div>
