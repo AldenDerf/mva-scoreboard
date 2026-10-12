@@ -10,9 +10,9 @@ const sample: OverlayDisplay = {
   ],
 };
 
-export function OverlayPreview({ display = sample, embedded = false }: { display?: OverlayDisplay; embedded?: boolean }) {
+export function OverlayPreview({ display = sample, embedded = false, ariaLabel = "Development-only scoreboard overlay preview" }: { display?: OverlayDisplay; embedded?: boolean; ariaLabel?: string }) {
   return (
-    <main className={embedded ? "w-full text-white" : "overlay-preview flex min-h-screen w-full items-end p-[clamp(16px,3.5vw,68px)] text-white"} aria-label="Development-only scoreboard overlay preview">
+    <main className={embedded ? "w-full text-white" : "overlay-preview flex min-h-screen w-full items-end p-[clamp(16px,3.5vw,68px)] text-white"} aria-label={ariaLabel}>
       <div className="overlay-scorebug w-full max-w-[710px] overflow-hidden rounded-2xl bg-[#061735]/95 shadow-[0_24px_70px_rgba(0,0,0,.32)] ring-1 ring-white/20">
         <div className="overlay-head flex flex-wrap items-center justify-between gap-2 border-b border-white/15 bg-[#123772] px-4 py-2.5 sm:px-6">
           <div className="min-w-0"><span className="overlay-event mr-3 text-[10px] font-bold uppercase tracking-[.18em] text-blue-200">{display.tournament}</span><span className="overlay-event text-[10px] font-semibold uppercase tracking-[.12em] text-white/70">{display.division}</span></div>
