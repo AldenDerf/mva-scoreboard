@@ -1,7 +1,11 @@
-# Agent handoff — Phase 03F review
+# Agent handoff — Phase 03G runtime security review
 
-**Branch:** `docs/phase-03f-runtime-admin-review`. **Base:** `main` at `fc34e04` after `git pull --ff-only` reported already up to date. **Database:** local `mva_dev` retains the Phase 03E foundation. No SQL, Auth, role, function, or ADMIN change was made.
+**Branch:** `docs/phase-03g-runtime-security-review`. **Base:** updated `main` at `6b08aea`; fetch and fast-forward reported already up to date. **Database:** only read-only catalog queries on local `mva_dev`; no role, ACL, function, grant, Auth, or application change.
 
-Read [Phase 03F approval report](PHASE_03F_APPROVAL_REPORT.md) for read-only catalog findings, proposed SQL, Auth UUID procedure, risks, tests, and approval boundary. The existing server authorization still fails closed with `ACCESS_PENDING`. No live Auth identity lookup was performed. The report proposes a runtime role and two narrow functions; none exist yet.
+Read [Phase 03G security review](PHASE_03G_SECURITY_REVIEW.md) for the permission matrix, function-owner decision, Auth and application plan, test cases, risks, and exact approval boundary. Proposed, non-executed SQL is under `db/proposals/03g/`. Phase 03F's postgres-owned lookup is superseded. The application remains fail closed at `ACCESS_PENDING`.
 
-**Next action:** review the proposal and privately verify the owner's Supabase Auth UUID. Seek explicit, separate owner approval for finalized local runtime DDL and ADMIN bootstrap before executing either. Do not rerun migration 0001 or use the `postgres` credential at runtime. No push, merge, deployment, or production change is authorized.
+**Next action:** independently review proposed SQL, verify the owner UUID privately through Supabase Auth, rehearse on a disposable cluster under separate authorization, and obtain explicit owner approval before any local runtime or ADMIN database operation. Do not rerun the foundation migration. No push, merge, deployment, or production operation is authorized.
+
+**Changed files:** `docs/PLAN.md`, `docs/HANDOFF.md`, `docs/PHASE_03F_APPROVAL_REPORT.md`, `docs/PHASE_03G_SECURITY_REVIEW.md`, three SQL proposals under `db/proposals/03g/`, and two read-only scripts under `db/verification/`.
+
+**Checks:** read-only catalog and bootstrap-verification scripts passed; `pnpm lint` passed; `pnpm exec tsc --noEmit` passed on sequential rerun; `pnpm test` passed 12/12 outside the sandbox; `pnpm build` passed outside the sandbox; `git diff --check` passed. Initial sandbox test/build attempts failed with Windows `spawn EPERM`; an overlapping initial TypeScript check saw transient missing `.next/types` while build regenerated them. Proposed SQL was not executed or independently syntax-tested by PostgreSQL. Browser, OBS, and live Supabase Auth were not tested.
