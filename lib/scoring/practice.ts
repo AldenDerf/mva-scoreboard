@@ -20,7 +20,7 @@ type AwardEvent = {
 };
 type UndoEvent = { id: string; type: "UNDO"; targetId: string; setNumber: number };
 type ConfirmEvent = { id: string; type: "CONFIRM_SET"; setNumber: number; winner: Side };
-type CorrectionEvent = { id: string; type: "SUBTRACT" | "CORRECT_POINTS" | "CORRECT_SERVE" | "CORRECT_SET" | "CORRECT_CURRENT_SET"; intent: string; setNumber: number; before: { teamA: number; teamB: number; serving: Side; winner: Side | null; currentSet: number }; after: { teamA: number; teamB: number; serving: Side; winner: Side | null; currentSet: number }; reason: string };
+type CorrectionEvent = { id: string; type: "SUBTRACT" | "CORRECT_POINTS" | "CORRECT_SERVE" | "CORRECT_SET" | "CORRECT_CURRENT_SET"; intent: string; timestamp: string; setNumber: number; before: { teamA: number; teamB: number; serving: Side; winner: Side | null; currentSet: number }; after: { teamA: number; teamB: number; serving: Side; winner: Side | null; currentSet: number }; description: string };
 export type PracticeEvent = AwardEvent | UndoEvent | ConfirmEvent | CorrectionEvent;
 
 export interface PracticeMatch {
@@ -39,10 +39,10 @@ export type PracticeAction =
   | { id: string; expectedRevision: number; type: "UNDO" }
   | { id: string; expectedRevision: number; type: "CONFIRM_SET" }
   | { id: string; expectedRevision: number; type: "SUBTRACT"; team: Side }
-  | { id: string; expectedRevision: number; type: "CORRECT_POINTS"; teamA: number; teamB: number; reason: string }
-  | { id: string; expectedRevision: number; type: "CORRECT_SERVE"; serving: Side; reason: string }
-  | { id: string; expectedRevision: number; type: "CORRECT_SET"; setNumber: number; teamA: number; teamB: number; reason: string }
-  | { id: string; expectedRevision: number; type: "CORRECT_CURRENT_SET"; setNumber: number; reason: string };
+  | { id: string; expectedRevision: number; type: "CORRECT_POINTS"; teamA: number; teamB: number }
+  | { id: string; expectedRevision: number; type: "CORRECT_SERVE"; serving: Side }
+  | { id: string; expectedRevision: number; type: "CORRECT_SET"; setNumber: number; teamA: number; teamB: number }
+  | { id: string; expectedRevision: number; type: "CORRECT_CURRENT_SET"; setNumber: number };
 
 export type PracticeResult =
   | { ok: true; state: PracticeMatch; replayed: boolean }
@@ -50,7 +50,6 @@ export type PracticeResult =
 
 const other = (side: Side): Side => (side === "A" ? "B" : "A");
 const validPoints = (value: number) => Number.isSafeInteger(value) && value >= 0;
-const validReason = (value: string) => value.trim().length > 0 && value.trim().length <= 500;
 export function setsWon(state: PracticeMatch, side: Side): number { return state.sets.filter((set) => set.winner === side).length; }
 export function startNewPracticeMatch(): null { return null; }
 
@@ -103,7 +102,7 @@ export function applyPracticeAction(state: PracticeMatch, action: PracticeAction
     const target = action.type === "CORRECT_SET" ? state.sets[action.setNumber - 1] : current;
     if (!target || (action.type !== "CORRECT_SET" && target.winner)) return { ok: false, reason: "INVALID", state };
     if (action.type === "CORRECT_CURRENT_SET") {
-      if (!validReason(action.reason) || action.setNumber !== current.number - 1 || current.teamA !== 0 || current.teamB !== 0 || current.number <= 1) return { ok: false, reason: "INVALID", state };
+      if (action.setNumber !== current.number - 1 || current.teamA !== 0 || current.teamB !== 0 || current.number <= 1) return { ok: false, reason: "INVALID", state };
       const prior = state.sets.at(-2)!;
       if (!prior.winner) return { ok: false, reason: "INVALID", state };
       const reopened = { ...prior, winner: null };
@@ -111,7 +110,7 @@ export function applyPracticeAction(state: PracticeMatch, action: PracticeAction
       const after = { teamA: reopened.teamA, teamB: reopened.teamB, serving: state.serving, winner: reopened.winner, currentSet: reopened.number };
       const { id: _id, expectedRevision: _revision, ...intent } = action; void _id; void _revision;
       return { ok: true, replayed: false, state: { ...state, sets: [...state.sets.slice(0, -2), reopened], revision: state.revision + 1,
-        events: [...state.events, { id: action.id, type: action.type, intent: JSON.stringify(intent), setNumber: prior.number, before, after, reason: action.reason.trim() }] } };
+        events: [...state.events, { id: action.id, type: action.type, intent: JSON.stringify(intent), timestamp: new Date().toISOString(), setNumber: prior.number, before, after, description: `Reopen set ${prior.number}` }] } };
     }
     const before = { teamA: target.teamA, teamB: target.teamB, serving: state.serving, winner: target.winner, currentSet: current.number };
     let changed = target;
@@ -120,7 +119,7 @@ export function applyPracticeAction(state: PracticeMatch, action: PracticeAction
       if ((action.team !== "A" && action.team !== "B") || (action.team === "A" ? target.teamA : target.teamB) === 0) return { ok: false, reason: "INVALID", state };
       changed = { ...target, teamA: target.teamA - (action.team === "A" ? 1 : 0), teamB: target.teamB - (action.team === "B" ? 1 : 0) };
     } else if (action.type === "CORRECT_POINTS" || action.type === "CORRECT_SET") {
-      if (!validPoints(action.teamA) || !validPoints(action.teamB) || !validReason(action.reason)) return { ok: false, reason: "INVALID", state };
+      if (!validPoints(action.teamA) || !validPoints(action.teamB)) return { ok: false, reason: "INVALID", state };
       changed = { ...target, teamA: action.teamA, teamB: action.teamB };
       if (action.type === "CORRECT_SET") {
         if (!target.winner || target.number >= current.number && state.status !== "COMPLETED") return { ok: false, reason: "INVALID", state };
@@ -138,15 +137,18 @@ export function applyPracticeAction(state: PracticeMatch, action: PracticeAction
         if (state.status === "COMPLETED" ? Math.max(finalA, finalB) !== needed : Math.max(finalA, finalB) >= needed) return { ok: false, reason: "INVALID", state };
       }
     } else if (action.type === "CORRECT_SERVE") {
-      if ((action.serving !== "A" && action.serving !== "B") || !validReason(action.reason)) return { ok: false, reason: "INVALID", state };
+      if (action.serving !== "A" && action.serving !== "B") return { ok: false, reason: "INVALID", state };
       serving = action.serving;
     }
     if (changed.teamA === target.teamA && changed.teamB === target.teamB && changed.winner === target.winner && serving === state.serving) return { ok: false, reason: "INVALID", state };
-    const reason = action.type === "SUBTRACT" ? `Subtract one point from Team ${action.team}` : action.reason.trim();
+    const description = action.type === "SUBTRACT" ? `Subtract one point from Team ${action.team}`
+      : action.type === "CORRECT_POINTS" ? "Correct current points"
+      : action.type === "CORRECT_SERVE" ? `Set serving team to ${action.serving}`
+      : `Correct set ${target.number} result`;
     const after = { teamA: changed.teamA, teamB: changed.teamB, serving, winner: changed.winner, currentSet: current.number };
     return { ok: true, replayed: false, state: { ...state, serving, revision: state.revision + 1,
       sets: state.sets.map((set) => set.number === target.number ? changed : set),
-      events: [...state.events, { id: action.id, type: action.type, intent: JSON.stringify((({ id, expectedRevision, ...rest }) => { void id; void expectedRevision; return rest; })(action)), setNumber: target.number, before, after, reason }] } };
+      events: [...state.events, { id: action.id, type: action.type, intent: JSON.stringify((({ id, expectedRevision, ...rest }) => { void id; void expectedRevision; return rest; })(action)), timestamp: new Date().toISOString(), setNumber: target.number, before, after, description }] } };
   }
   if (current.winner) return { ok: false, reason: "INVALID", state };
   const pending = setWinner(current, state.bestOf);

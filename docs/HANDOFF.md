@@ -1,12 +1,16 @@
 # Agent handoff — Phase 03I practice corrections
 
+**Refinement:** Correction controls no longer ask operators to type reasons. Point corrections save directly, serving switches immediately, and same-winner historical score edits save directly. Changing a confirmed-set winner, reopening the previous set, confirming a set, and starting a new practice match retain focused confirmations. In-memory correction events now include an automatic description, timestamp, affected set, and before/after values. The same progression validation and immediately-previous-set reopening restriction remain.
+
 **Branch:** `feat/phase-03i-practice-corrections`, based on unmerged Phase 03H commit `9f9d893`. Practice only: no SQL, Auth, production data, or deployment changes.
 
-**Scope:** Team-specific subtraction, direct point replacement, manual serve selection, completed-set correction, and a constrained current-set reconciliation are in `lib/scoring/practice.ts` and `components/practice-scorekeeper.tsx`. Confirmed results derive sets won. A current set can be moved backward only by explicitly reopening the immediately previous confirmed set while the new set is empty; other jumps are rejected and need a separate history reconciliation design. Historical corrections that make existing later sets impossible are rejected. Corrections have in-memory before/after event records and reasons; refresh clears them. The production route remains guarded by the existing development layout.
+**Scope:** Team-specific subtraction, direct point replacement, manual serve selection, completed-set correction, and a constrained current-set reconciliation are in `lib/scoring/practice.ts` and `components/practice-scorekeeper.tsx`. Confirmed results derive sets won. A current set can be moved backward only by explicitly reopening the immediately previous confirmed set while the new set is empty; other jumps are rejected and need a separate history reconciliation design. Historical corrections that make existing later sets impossible are rejected. Correction history is in memory only; refresh clears it. The production route remains guarded by the existing development layout.
 
 **Next action:** Review Phase 03I practice behavior with a scorekeeper, especially confirmed-set winner changes and the constrained reopen flow. Continue server-authoritative transaction design separately after production target and authorization approvals. Do not treat in-memory events as a durable audit log.
 
 **Checks:** `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (26/26), `pnpm build`, and `git diff --check` pass. Production `/dev/practice` returned HTTP 404 on the local build. Test/build worker spawning required unsandboxed execution after `spawn EPERM` in the sandbox. Browser interaction and OBS checks were not performed because no browser surface or OBS session was available.
+
+**Refinement checks:** `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (28/28), `pnpm build`, and `git diff --check` passed. The test runner needed unsandboxed execution after the sandbox blocked worker spawning. No browser or OBS interaction was performed for this refinement.
 
 ---
 

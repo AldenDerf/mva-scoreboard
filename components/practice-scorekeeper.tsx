@@ -17,7 +17,11 @@ function reducer(screen: Screen, action: ScreenAction): Screen {
   if (action.type === "RESET") return { match: startNewPracticeMatch(), notice: "Practice match cleared." };
   if (!screen.match) return screen;
   const result = applyPracticeAction(screen.match, action.command);
-  if (!result.ok) return { ...screen, notice: result.reason === "CONFLICT" ? "This action was not counted. Check the score and try again." : "Correction unavailable. Check the scores and confirmed set history." };
+  if (!result.ok) return { ...screen, notice: result.reason === "CONFLICT" ? "This action was not counted. Check the score and try again."
+    : result.reason === "LOCKED" ? "This match or set is locked. Check the score before trying again."
+    : action.command.type === "CORRECT_SET" ? "This set score is invalid or conflicts with later match history. No results changed."
+    : action.command.type === "CORRECT_CURRENT_SET" ? "Only the immediately previous set can be reopened, and only while the current set is empty."
+    : "Correction unavailable. Check the entered values and current score." };
   const labels: Record<PracticeAction["type"], string> = {
     AWARD: "Point recorded.", UNDO: "Last point corrected.", SUBTRACT: "Point subtracted. Check serving team.",
     CORRECT_POINTS: "Current points corrected. Check serving team.", CORRECT_SERVE: "Serving team corrected.",
@@ -50,7 +54,6 @@ export function PracticeScorekeeper() {
   const [draftA, setDraftA] = useState("");
   const [draftB, setDraftB] = useState("");
   const [setNumber, setSetNumber] = useState(1);
-  const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const match = screen.match;
   const current = match?.sets.at(-1);
@@ -61,6 +64,19 @@ export function PracticeScorekeeper() {
     if (!match) return;
     dispatch({ type: "COMMAND", command: { ...command, id: crypto.randomUUID(), expectedRevision: match.revision } as PracticeAction });
   }
+  function save(command: CommandInput): boolean {
+    if (!match) return false;
+    const full = { ...command, id: crypto.randomUUID(), expectedRevision: match.revision } as PracticeAction;
+    const preview = applyPracticeAction(match, full);
+    if (!preview.ok) {
+      setError(command.type === "CORRECT_SET" ? "This score conflicts with later set history or match completion. No result changed."
+        : command.type === "CORRECT_CURRENT_SET" ? "The previous set can be reopened only while the current set is empty."
+        : "These values cannot be applied to the current set.");
+      return false;
+    }
+    dispatch({ type: "COMMAND", command: full });
+    return true;
+  }
   function start() {
     try { dispatch({ type: "START", match: createPracticeMatch(teamA, teamB, bestOf, serve) }); setError(""); setEditor(null); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Invalid match settings."); }
@@ -70,31 +86,29 @@ export function PracticeScorekeeper() {
     setEditor(next); setSetNumber(next === "current" ? current.number - 1 : 1);
     setDraftA(String(next === "sets" ? match.sets[0].teamA : current.teamA));
     setDraftB(String(next === "sets" ? match.sets[0].teamB : current.teamB));
-    setReason(""); setError("");
+    setError("");
   }
   function chooseSet(value: number) {
     if (!match) return;
     const set = match.sets[value - 1];
     if (!set) return;
-    setSetNumber(value); setDraftA(String(set.teamA)); setDraftB(String(set.teamB)); setReason(""); setError("");
+    setSetNumber(value); setDraftA(String(set.teamA)); setDraftB(String(set.teamB)); setError("");
   }
   function saveCorrection() {
     if (!match || !current || !editor) return;
     if (editor !== "current" && (!validInput(draftA) || !validInput(draftB))) { setError("Enter whole, nonnegative, safe point values for both teams."); return; }
-    if (!reason.trim()) { setError("Enter a correction reason."); return; }
     if (editor === "points") {
-      if (!window.confirm(`Replace current points ${current.teamA}–${current.teamB} with ${draftA}–${draftB}? The set remains unconfirmed and serving team stays ${match.serving}.`)) return;
-      send({ type: "CORRECT_POINTS", teamA: Number(draftA), teamB: Number(draftB), reason });
+      if (!save({ type: "CORRECT_POINTS", teamA: Number(draftA), teamB: Number(draftB) })) return;
     } else if (editor === "sets") {
       const old = match.sets[setNumber - 1];
       if (!old) return;
       const proposed = setWinner({ ...old, teamA: Number(draftA), teamB: Number(draftB) }, match.bestOf);
       if (!proposed || !validFinalSet({ ...old, teamA: Number(draftA), teamB: Number(draftB) }, match.bestOf)) { setError("The winning score must be 25 (15 in a deciding set), or exactly two above the opponent after deuce."); return; }
-      if (!window.confirm(`Correct confirmed set ${setNumber} from ${old.teamA}–${old.teamB} (${old.winner}) to ${draftA}–${draftB} (${proposed})? ${proposed !== old.winner ? "This changes the winner. " : ""}Later sets stay unchanged; incompatible match history is rejected.`)) return;
-      send({ type: "CORRECT_SET", setNumber, teamA: Number(draftA), teamB: Number(draftB), reason });
+      if (proposed !== old.winner && !window.confirm(`Change the winner of set ${setNumber} from ${old.winner === "A" ? match.teamA : match.teamB} to ${proposed === "A" ? match.teamA : match.teamB}? Later sets stay unchanged; incompatible match history is rejected.`)) return;
+      if (!save({ type: "CORRECT_SET", setNumber, teamA: Number(draftA), teamB: Number(draftB) })) return;
     } else {
       if (!window.confirm(`Reopen set ${setNumber}? The empty current set will be removed and the previous confirmed result will become pending again. This action is recorded in this tab.`)) return;
-      send({ type: "CORRECT_CURRENT_SET", setNumber, reason });
+      if (!save({ type: "CORRECT_CURRENT_SET", setNumber })) return;
     }
     setEditor(null); setError("");
   }
@@ -140,7 +154,7 @@ export function PracticeScorekeeper() {
           <button type="button" disabled={!confirmed.length} onClick={() => openEditor("sets")} className={buttonClass}>Edit Set Results</button>
           <button type="button" disabled={match.status === "COMPLETED"} onClick={() => openEditor("current")} className={buttonClass}>Edit Current Set</button>
         </div>
-        {match.status === "LIVE" && <label className="mt-5 block max-w-sm text-sm font-semibold">Serving team<select className={inputClass} value={match.serving} onChange={(event) => { const serving = event.target.value as Side; if (serving !== match.serving && window.confirm(`Set serving team to ${serving === "A" ? match.teamA : match.teamB}?`)) send({ type: "CORRECT_SERVE", serving, reason: "Manual serving correction" }); }}><option value="A">{match.teamA}</option><option value="B">{match.teamB}</option></select></label>}
+        {match.status === "LIVE" && <label className="mt-5 block max-w-sm text-sm font-semibold">Serving team<select className={inputClass} value={match.serving} onChange={(event) => { const serving = event.target.value as Side; if (serving !== match.serving) send({ type: "CORRECT_SERVE", serving }); }}><option value="A">{match.teamA}</option><option value="B">{match.teamB}</option></select></label>}
         {editor && <div className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--subtle)] p-4">
           <h3 className="text-lg font-bold">{editor === "points" ? "Edit current points" : editor === "sets" ? "Edit confirmed set result" : "Reopen previous set"}</h3>
           {editor === "sets" && <label className="mt-3 block max-w-sm text-sm font-semibold">Confirmed set<select className={inputClass} value={setNumber} onChange={(event) => chooseSet(Number(event.target.value))}>{confirmed.map((set) => <option key={set.number} value={set.number}>Set {set.number}: {set.teamA}–{set.teamB} · {set.winner === "A" ? match.teamA : match.teamB} won</option>)}</select></label>}
@@ -148,9 +162,8 @@ export function PracticeScorekeeper() {
             <label className="text-sm font-semibold">{match.teamA} points<input type="number" min="0" step="1" inputMode="numeric" className={inputClass} value={draftA} onChange={(event) => setDraftA(event.target.value)} /></label>
             <label className="text-sm font-semibold">{match.teamB} points<input type="number" min="0" step="1" inputMode="numeric" className={inputClass} value={draftB} onChange={(event) => setDraftB(event.target.value)} /></label>
           </div>}
-          <label className="mt-3 block max-w-xl text-sm font-semibold">Correction reason<input className={inputClass} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></label>
           {error && <p role="alert" className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
-          <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={editor === "current" && (current?.number === 1 || current?.teamA !== 0 || current?.teamB !== 0)} onClick={saveCorrection} className={`${buttonClass} disabled:opacity-40`}>Review correction</button><button type="button" onClick={() => { setEditor(null); setError(""); }} className={buttonClass}>Cancel</button></div>
+          <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={editor === "current" && (current?.number === 1 || current?.teamA !== 0 || current?.teamB !== 0)} onClick={saveCorrection} className={`${buttonClass} bg-[#2455cf] text-white disabled:opacity-40`}>Save</button><button type="button" onClick={() => { setEditor(null); setError(""); }} className={buttonClass}>Cancel</button></div>
         </div>}
       </section>
       <section aria-label="Practice overlay appearance"><h2 className="mb-3 text-lg font-semibold">Scorebug appearance in this tab</h2><OverlayPreview display={overlayDisplay(match)} embedded /><p className="mt-3 text-xs text-[var(--muted)]">The separate OBS preview URL remains static. This scorebug is only a local visual check.</p></section>

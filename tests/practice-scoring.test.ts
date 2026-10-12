@@ -144,64 +144,102 @@ test("subtract is team specific, never negative, and leaves serve explicit", () 
 test("direct point edit validates values, stores before/after and keeps confirmation pending", () => {
   let state = createPracticeMatch("A", "B", 3, "A");
   for (const bad of [-1, NaN, Infinity, 1.2, Number.MAX_SAFE_INTEGER + 1]) {
-    assert.equal(applyPracticeAction(state, { id: crypto.randomUUID(), expectedRevision: state.revision, type: "CORRECT_POINTS", teamA: bad, teamB: 0, reason: "Correction" }).ok, false);
+    assert.equal(applyPracticeAction(state, { id: crypto.randomUUID(), expectedRevision: state.revision, type: "CORRECT_POINTS", teamA: bad, teamB: 0 }).ok, false);
   }
-  state = correct(state, { type: "CORRECT_POINTS", teamA: 18, teamB: 16, reason: "Scorebook" });
-  state = correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 23, reason: "Several rallies back" });
+  state = correct(state, { type: "CORRECT_POINTS", teamA: 18, teamB: 16 });
+  state = correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 23 });
   assert.equal(setWinner(state.sets[0], 3), "A");
   assert.equal(state.sets[0].winner, null);
   assert.equal(state.events.at(-1)?.type, "CORRECT_POINTS");
+  const correction = state.events.at(-1);
+  if (correction?.type === "CORRECT_POINTS") {
+    assert.equal(correction.before.teamA, 18);
+    assert.equal(correction.after.teamA, 25);
+    assert.equal(correction.setNumber, 1);
+    assert.equal(correction.description, "Correct current points");
+    assert.ok(!Number.isNaN(Date.parse(correction.timestamp)));
+  }
   assert.equal(applyPracticeAction(state, { id: "tap", expectedRevision: state.revision, type: "AWARD", team: "A" }).ok, false);
   state = confirm(state);
   assert.equal(state.sets[0].winner, "A");
 });
 
 test("invalid final score cannot be confirmed or written into history", () => {
-  let state = correct(createPracticeMatch("A", "B", 3, "A"), { type: "CORRECT_POINTS", teamA: 26, teamB: 0, reason: "Input" });
+  let state = correct(createPracticeMatch("A", "B", 3, "A"), { type: "CORRECT_POINTS", teamA: 26, teamB: 0 });
   assert.equal(setWinner(state.sets[0], 3), "A");
   assert.equal(applyPracticeAction(state, { id: "invalid-final", expectedRevision: state.revision, type: "CONFIRM_SET" }).ok, false);
-  state = correct(state, { type: "CORRECT_POINTS", teamA: 26, teamB: 24, reason: "Deuce" });
+  state = correct(state, { type: "CORRECT_POINTS", teamA: 26, teamB: 24 });
   assert.equal(applyPracticeAction(state, { id: "valid-final", expectedRevision: state.revision, type: "CONFIRM_SET" }).ok, true);
 });
 
 test("historical result correction derives wins and rejects impossible later history", () => {
   let state = createPracticeMatch("A", "B", 3, "A");
-  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 0, reason: "Setup" }));
-  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 0, teamB: 25, reason: "Setup" }));
-  const result = applyPracticeAction(state, { id: "history", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 1, teamA: 0, teamB: 25, reason: "Paper sheet" });
+  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 0 }));
+  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 0, teamB: 25 }));
+  const result = applyPracticeAction(state, { id: "history", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 1, teamA: 0, teamB: 25 });
   assert.equal(result.ok, false);
-  const valid = applyPracticeAction(state, { id: "history2", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 1, teamA: 27, teamB: 25, reason: "Paper sheet" });
+  const valid = applyPracticeAction(state, { id: "history2", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 1, teamA: 27, teamB: 25 });
   assert.equal(valid.ok, true);
   assert.deepEqual(valid.state.sets.map((set) => set.winner), ["A", "B", null]);
-  assert.equal(applyPracticeAction(state, { id: "bad-set", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 1, teamA: 24, teamB: 23, reason: "Invalid" }).ok, false);
+  assert.equal(applyPracticeAction(state, { id: "bad-set", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 1, teamA: 24, teamB: 23 }).ok, false);
 });
 
 test("current set correction reopens only immediately previous set with empty current set", () => {
   let state = createPracticeMatch("A", "B", 5, "A");
-  assert.equal(applyPracticeAction(state, { id: "skip", expectedRevision: state.revision, type: "CORRECT_CURRENT_SET", setNumber: 3, reason: "Wrong set" }).ok, false);
-  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 0, reason: "Setup" }));
-  const invalid = applyPracticeAction(state, { id: "skip2", expectedRevision: state.revision, type: "CORRECT_CURRENT_SET", setNumber: 3, reason: "Wrong set" });
+  assert.equal(applyPracticeAction(state, { id: "skip", expectedRevision: state.revision, type: "CORRECT_CURRENT_SET", setNumber: 3 }).ok, false);
+  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 0 }));
+  const invalid = applyPracticeAction(state, { id: "skip2", expectedRevision: state.revision, type: "CORRECT_CURRENT_SET", setNumber: 3 });
   assert.equal(invalid.ok, false);
-  const reopened = applyPracticeAction(state, { id: "reopen", expectedRevision: state.revision, type: "CORRECT_CURRENT_SET", setNumber: 1, reason: "Premature confirmation" });
+  const reopened = applyPracticeAction(state, { id: "reopen", expectedRevision: state.revision, type: "CORRECT_CURRENT_SET", setNumber: 1 });
   assert.equal(reopened.ok, true);
   assert.equal(reopened.state.sets.length, 1);
   assert.equal(reopened.state.sets[0].winner, null);
   assert.equal(setWinner(reopened.state.sets[0], 5), "A");
   state = award(state, "B");
-  assert.equal(applyPracticeAction(state, { id: "late-reopen", expectedRevision: state.revision, type: "CORRECT_CURRENT_SET", setNumber: 1, reason: "Late" }).ok, false);
+  assert.equal(applyPracticeAction(state, { id: "late-reopen", expectedRevision: state.revision, type: "CORRECT_CURRENT_SET", setNumber: 1 }).ok, false);
 });
 
 test("serving correction and completed match restrictions", () => {
   let state = createPracticeMatch("A", "B", 3, "A");
-  const result = applyPracticeAction(state, { id: "serve", expectedRevision: state.revision, type: "CORRECT_SERVE", serving: "B", reason: "Referee" });
+  const result = applyPracticeAction(state, { id: "serve", expectedRevision: state.revision, type: "CORRECT_SERVE", serving: "B" });
   assert.equal(result.ok, true);
   state = result.state;
   assert.equal(state.serving, "B");
-  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 0, reason: "Setup" }));
-  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 0, reason: "Setup" }));
+  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 0 }));
+  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 0 }));
   assert.equal(applyPracticeAction(state, { id: "locked", expectedRevision: state.revision, type: "SUBTRACT", team: "A" }).ok, false);
-  assert.equal(applyPracticeAction(state, { id: "winner-flip", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 2, teamA: 0, teamB: 25, reason: "Sheet" }).ok, false);
+  assert.equal(applyPracticeAction(state, { id: "winner-flip", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 2, teamA: 0, teamB: 25 }).ok, false);
   const fresh = createPracticeMatch("A", "B", 3, "B");
   assert.equal(fresh.events.length, 0);
   assert.equal(fresh.sets[0].teamA, 0);
+});
+
+test("reason-free corrections preserve idempotency and structured event details", () => {
+  const initial = createPracticeMatch("A", "B", 3, "A");
+  const command = { id: "points-1", expectedRevision: 0, type: "CORRECT_POINTS" as const, teamA: 18, teamB: 16 };
+  const first = applyPracticeAction(initial, command);
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  const replay = applyPracticeAction(first.state, command);
+  assert.equal(replay.ok && replay.replayed, true);
+  assert.equal(replay.state.events.length, 1);
+  assert.equal(applyPracticeAction(first.state, { ...command, teamA: 19 }).ok, false);
+  assert.equal(applyPracticeAction(first.state, { ...command, id: "stale" }).ok, false);
+  const event = first.state.events[0];
+  assert.equal(event.type, "CORRECT_POINTS");
+  if (event.type !== "CORRECT_POINTS") return;
+  assert.equal(event.before.teamA, 0);
+  assert.equal(event.after.teamA, 18);
+  assert.equal(event.setNumber, 1);
+  assert.ok(!Number.isNaN(Date.parse(event.timestamp)));
+});
+
+test("same-winner set correction is accepted without changing derived wins", () => {
+  let state = createPracticeMatch("A", "B", 3, "A");
+  state = confirm(correct(state, { type: "CORRECT_POINTS", teamA: 25, teamB: 20 }));
+  const result = applyPracticeAction(state, { id: "set-1", expectedRevision: state.revision, type: "CORRECT_SET", setNumber: 1, teamA: 25, teamB: 22 });
+  assert.equal(result.ok, true);
+  assert.equal(result.state.sets[0].winner, "A");
+  assert.equal(result.state.sets[0].teamB, 22);
+  assert.equal(result.state.sets[1].teamA, 0);
 });
