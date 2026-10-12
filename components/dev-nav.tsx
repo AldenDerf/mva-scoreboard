@@ -7,6 +7,7 @@ const items = [
   { label: "Dashboard", href: "/dev", glyph: "▦" },
   { label: "Matches", href: "/dev/matches", glyph: "▤" },
   { label: "New Match", href: "/dev/matches/new", glyph: "+" },
+  { label: "Practice Scoring", href: "/dev/practice", glyph: "1" },
   { label: "Match History", href: "/dev/history", glyph: "◷" },
   { label: "Scorekeepers", href: "/dev/scorekeepers", glyph: "♧" },
   { label: "Settings", href: "/dev/settings", glyph: "⚙" },
