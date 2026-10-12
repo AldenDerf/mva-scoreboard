@@ -1,4 +1,40 @@
-# Agent handoff — Phase 03I practice corrections
+# Agent handoff — Phase 04 live scoring foundation
+
+**Branch:** `feat/phase-04-live-scoring-foundation`, based on `main` at PR #7 merge `0a7117f`.
+
+**Takeover & Implementation:** Antigravity took over Phase 04 from Codex. Preserved all initial implementation and completed refinements:
+- Restricted `pg` service in `lib/db/scoreboard.ts` with explicit connection pool lifecycle cleanup (`closeScoreboardPool`).
+- Enhanced reverse proxy / Vercel `x-forwarded-proto` validation in `lib/server/scoreboard-api.ts:sameOrigin`.
+- Enhanced `LiveScorekeeper` with explicit navigation back to matches (`/matches`), completed match state banner, and SSR-safe overlay URL resolution.
+- Enhanced `MatchList` with dashboard navigation (`/dashboard`), clear team labels on first-serve options, and an empty state card.
+- Fail-closed role lookup via `scoreboard.active_role_for_user(uuid)` with `ACCESS_PENDING` / `UNAVAILABLE` handling.
+- Review-only Phase 04 SQL proposals with transactional scoring, row-level locking, expected revision checks, stable UUID action idempotency, and automatic append-only audit events without operator typed reasons.
+- Public, transparent, broadcast-safe OBS overlay route (`/overlay/[publicId]`) with automatic 2.5s polling and session-proxy bypass.
+See [Phase 04 report](PHASE_04_IMPLEMENTATION.md).
+
+**Database state:**
+- Read-only `mva_dev` inspection on `::1:5432` confirmed cluster `7629597861964584196`, PostgreSQL 18.3, seven scoreboard tables with FORCE RLS, zero policies, and only `reject_history_change()`. Local `mva_dev` remains 100% untouched and unchanged.
+- Isolated test rehearsal executed in disposable PostgreSQL 18 clusters (`initdb` on ephemeral loopback port, e.g. 55442): applied foundation, runtime lookup, schema, and command proposals; executed `tests/phase04-sql-integration.sql` in a rollback transaction; and executed full Node.js test suite with `PHASE04_TEST_DATABASE_URL`.
+- 29/29 tests passed (including `tests/live-scoring-db.test.ts`). Cluster was cleanly stopped and all temporary files removed.
+- Production Supabase and Vercel remain untouched.
+
+**Approvals needed:**
+1. Owner review and approval of the Phase 04 SQL proposals (`01_live_scoring.mva_dev.review.sql`, `02_scoring_commands.mva_dev.review.sql`) for local `mva_dev`.
+2. Fresh local backup before application.
+3. Activation of `scoreboard_runtime` LOGIN credential on `mva_dev`.
+4. Initial ADMIN role grant bootstrap.
+5. Separate review and migrations for production Supabase and Vercel.
+
+**Checks:**
+- `pnpm lint`: passed (0 errors).
+- `pnpm exec tsc --noEmit`: passed (0 errors).
+- `pnpm test`: 28 passed / 1 skipped without DB; 29/29 passed when run against disposable PostgreSQL 18 runtime.
+- `pnpm build`: passed (all routes compiled, partial prerender and dynamic routes verified).
+- `git diff --check`: passed.
+
+---
+
+# Earlier handoff — Phase 03I practice corrections
 
 **Refinement:** Correction controls no longer ask operators to type reasons. Point corrections save directly, serving switches immediately, and same-winner historical score edits save directly. Changing a confirmed-set winner, reopening the previous set, confirming a set, and starting a new practice match retain focused confirmations. In-memory correction events now include an automatic description, timestamp, affected set, and before/after values. The same progression validation and immediately-previous-set reopening restriction remain.
 
