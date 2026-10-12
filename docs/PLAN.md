@@ -1,6 +1,6 @@
 # MVA Live Scoreboard implementation plan
 
-**Current phase:** 03E Local Foundation Migration. **Product status:** In Development. The owner-approved exact SQL was applied once to verified local `mva_dev` after fresh protected backup. All 14 read-only post-checks passed; MVA definitions and row counts were unchanged. ADMIN provisioning, application runtime access, and production changes remain outside this phase.
+**Current phase:** 03F Runtime Security and Initial ADMIN Authorization review. **Product status:** In Development. Phase 03E was applied once to local `mva_dev` and must not be rerun. The runtime/ADMIN proposal is review only; no additional SQL or account change is authorized. See [Phase 03F approval report](PHASE_03F_APPROVAL_REPORT.md).
 
 ## Sequence and gates
 
@@ -36,7 +36,7 @@ Do not start schema or Auth work until the MVA identity boundary and scoreboard 
 - The local target is identifiable and backup/restore procedure was tested, but a current retained recovery point, owner approval of the shared target and exact checksum, non-superuser runtime credential, and production rollout approval remain outstanding.
 - Proposed best-of-three and operational scoring defaults need MVA association approval; official FIVB rules are identified separately in the architecture review.
 
-**Next bounded task:** Complete the remaining [Auth checklist](MIGRATION_APPROVAL_REPORT.md#phase-01h-owner-confirmation-checklist), then separately review and authorize a non-superuser application runtime path and initial ADMIN bootstrap. Preserve both protected backups through the approved retention window. The foundation migration has already been applied to local `mva_dev`; do not rerun it.
+**Next bounded task:** Review the [Phase 03F approval report](PHASE_03F_APPROVAL_REPORT.md), privately verify the owner's Supabase Auth UUID, test the proposed runtime ACLs in a separately authorized environment, and seek separate approval before local runtime DDL or ADMIN bootstrap. Preserve protected backups through the approved retention window. Do not rerun the foundation migration.
 
 ## Phase 02A UI scope
 
