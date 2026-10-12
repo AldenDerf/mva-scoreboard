@@ -1,6 +1,6 @@
 # MVA Live Scoreboard implementation plan
 
-**Current phase:** 03H Security Rehearsal and Practice Scoring MVP. **Product status:** In Development. Phase 03G SQL was rehearsed in disposable clusters; `mva_dev` and production were unchanged. A development-only practice scorekeeper works in one browser tab, but online persistence and OBS synchronization are not implemented. See [Phase 03H report](PHASE_03H_REHEARSAL_AND_PRACTICE.md).
+**Current phase:** 03I Practice Correction Controls. **Product status:** In Development. Phase 03G SQL was rehearsed in disposable clusters; `mva_dev` and production were unchanged. The development-only practice scorekeeper supports point, serve and constrained set-history corrections in one browser tab, but online persistence and OBS synchronization are not implemented. See [Phase 03H report](PHASE_03H_REHEARSAL_AND_PRACTICE.md).
 
 ## Sequence and gates
 
