@@ -33,16 +33,17 @@ export default async function AccessPendingPage() {
               className="size-2 rounded-full bg-amber-500"
               aria-hidden="true"
             />
-            AUTHORIZATION PENDING
+            {auth.status === "UNAVAILABLE" ? "AUTHORIZATION UNAVAILABLE" : "AUTHORIZATION PENDING"}
           </div>
 
           <h1 className="mt-5 text-2xl font-bold tracking-tight text-[var(--ink)] sm:text-3xl">
-            Scoreboard Access Required
+            {auth.status === "UNAVAILABLE" ? "Scoreboard Temporarily Unavailable" : "Scoreboard Access Required"}
           </h1>
 
           <p className="mt-3 text-[15px] leading-relaxed text-[var(--muted)]">
-            You are signed in with a valid MVA identity, but your account does
-            not currently hold an active role grant in MVA Live Scoreboard.
+            {auth.status === "UNAVAILABLE"
+              ? "Your MVA identity is signed in, but scoreboard access could not be verified. Try again shortly."
+              : "You are signed in with a valid MVA identity, but your account does not currently hold an active role grant in MVA Live Scoreboard."}
           </p>
 
           <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--subtle)] p-4 text-sm space-y-2">
@@ -55,16 +56,16 @@ export default async function AccessPendingPage() {
             <div className="flex justify-between items-center text-xs">
               <span className="text-[var(--muted)]">Scoreboard Role:</span>
               <span className="font-mono text-amber-700 dark:text-amber-400 font-medium">
-                None (fails closed)
+                {auth.status === "UNAVAILABLE" ? "Could not verify" : "None (fails closed)"}
               </span>
             </div>
           </div>
 
           <div className="mt-6 text-sm leading-6 text-[var(--muted)] border-t border-[var(--border)] pt-5">
             <p>
-              MVA website administrative access does not convey scoreboard
-              privileges. An administrator must provision an active role
-              (Admin or Scorekeeper) before you can manage matches.
+              {auth.status === "UNAVAILABLE"
+                ? "Scoring remains locked until the server can verify your role."
+                : "MVA website administrative access does not convey scoreboard privileges. An administrator must provision an active role (Admin or Scorekeeper) before you can manage matches."}
             </p>
           </div>
 

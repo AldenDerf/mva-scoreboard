@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "./session";
 import { getSafeRedirectUrl } from "./redirects";
+import { activeRoleForUser, isScoreboardDatabaseConfigured } from "@/lib/db/scoreboard";
 
 export type ScoreboardRole = "ADMIN" | "SCOREKEEPER";
 
 export type AuthorizationStatus =
   | "UNAUTHENTICATED"
   | "ACCESS_PENDING"
+  | "UNAVAILABLE"
   | "AUTHORIZED";
 
 export interface ScoreboardAuthorization {
@@ -26,8 +28,7 @@ export interface ScoreboardAuthorization {
  * 1. Authentication is not authorization: having a valid Supabase identity
  *    grants zero scoreboard privileges by default.
  * 2. Never infer authorization from email, user metadata, or MVA app admin tables.
- * 3. Fail closed: Since scoreboard schema and role_grants are not yet migrated
- *    to the database, all authenticated users evaluate to ACCESS_PENDING.
+ * 3. Fail closed when the restricted runtime is unavailable or unconfigured.
  *    No hardcoded development admin accounts are permitted.
  */
 export async function getScoreboardAuthorization(): Promise<ScoreboardAuthorization> {
@@ -45,11 +46,16 @@ export async function getScoreboardAuthorization(): Promise<ScoreboardAuthorizat
     };
   }
 
-  // Scoreboard schema (scoreboard.role_grants) is not yet applied in mva_dev.
-  // In accordance with Phase 03A security rules, authorization fails closed.
-  // When Phase 01D/03B database migration is authorized and applied, this helper
-  // will query active grants in scoreboard.role_grants.
-  const activeRole: ScoreboardRole | null = null;
+  let activeRole: ScoreboardRole | null = null;
+  if (isScoreboardDatabaseConfigured()) {
+    try {
+      activeRole = await activeRoleForUser(user.id);
+    } catch {
+      return { isAuthenticated: true, isAuthorized: false, status: "UNAVAILABLE",
+        userId: user.id, email: user.email ?? null, role: null,
+        reason: "Scoreboard authorization is temporarily unavailable." };
+    }
+  }
 
   if (!activeRole) {
     return {
@@ -108,7 +114,7 @@ export async function requireScoreboardAuth(
   }
 
   if (auth.status === "ACCESS_PENDING" || !auth.isAuthorized || !auth.role) {
-    redirect("/access-pending");
+    redirect(auth.status === "UNAVAILABLE" ? "/access-pending?unavailable=1" : "/access-pending");
   }
 
   if (options?.allowedRoles && !options.allowedRoles.includes(auth.role)) {
