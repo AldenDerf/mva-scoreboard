@@ -24,6 +24,7 @@ export default function DashboardPreview() {
         </div>
       </Card>
       <div className="mt-7 grid gap-4 md:grid-cols-2">
+        <Card className="p-6"><span className="eyebrow text-[var(--blue)]">PRACTICE</span><h2 className="mt-3 text-lg font-semibold">Try the scorekeeper controls</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">Score a fictional match in this browser tab. Refresh clears it, and OBS will not receive updates.</p><Link href="/dev/practice" className="mt-5 inline-block text-sm font-semibold text-[var(--blue)] underline underline-offset-4">Open practice scoring</Link></Card>
         <Card className="p-6"><span className="eyebrow text-[var(--blue)]">MATCHES</span><h2 className="mt-3 text-lg font-semibold">No match records connected</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">The live match list will appear after the database and authorization work is approved.</p><Link href="/dev/matches" className="mt-5 inline-block text-sm font-semibold text-[var(--blue)] underline underline-offset-4">View matches preview</Link></Card>
         <Card className="p-6"><span className="eyebrow text-[var(--blue)]">BROADCAST</span><h2 className="mt-3 text-lg font-semibold">See the scorebug design</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">A visual-only overlay with clearly marked sample scores and no live connection.</p><Link href="/dev/overlay" className="mt-5 inline-block text-sm font-semibold text-[var(--blue)] underline underline-offset-4">Open overlay preview</Link></Card>
       </div>
