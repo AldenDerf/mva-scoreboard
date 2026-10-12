@@ -1,5 +1,7 @@
 # Phase 03F approval report ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â runtime and first ADMIN
 
+**Superseded for execution planning by [Phase 03G security review](PHASE_03G_SECURITY_REVIEW.md).** Phase 03G found inherited `PUBLIC` CONNECT/TEMP, `public` schema USAGE, and two MVA trigger-function EXECUTEs. Its dedicated NOLOGIN function-owner design replaces the postgres-owned lookup proposed below. The SQL below is historical review text, not the approval candidate.
+
 **Status: review only.** The Phase 03E foundation is already applied to local `mva_dev`; never replay it. No SQL, role, function, account, or grant change was executed in this phase. This proposal targets only the verified local database; production needs a separate review.
 
 ## Evidence and Auth identity

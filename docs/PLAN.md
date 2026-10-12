@@ -1,6 +1,6 @@
 # MVA Live Scoreboard implementation plan
 
-**Current phase:** 03F Runtime Security and Initial ADMIN Authorization review. **Product status:** In Development. Phase 03E was applied once to local `mva_dev` and must not be rerun. The runtime/ADMIN proposal is review only; no additional SQL or account change is authorized. See [Phase 03F approval report](PHASE_03F_APPROVAL_REPORT.md).
+**Current phase:** 03G Final Runtime Security Verification. **Product status:** In Development. Phase 03E was applied once to local `mva_dev` and must not be rerun. The runtime/ADMIN SQL remains proposal only; no additional database or account change is authorized. See [Phase 03G security review](PHASE_03G_SECURITY_REVIEW.md).
 
 ## Sequence and gates
 
@@ -36,7 +36,7 @@ Do not start schema or Auth work until the MVA identity boundary and scoreboard 
 - The local target is identifiable and backup/restore procedure was tested, but a current retained recovery point, owner approval of the shared target and exact checksum, non-superuser runtime credential, and production rollout approval remain outstanding.
 - Proposed best-of-three and operational scoring defaults need MVA association approval; official FIVB rules are identified separately in the architecture review.
 
-**Next bounded task:** Review the [Phase 03F approval report](PHASE_03F_APPROVAL_REPORT.md), privately verify the owner's Supabase Auth UUID, test the proposed runtime ACLs in a separately authorized environment, and seek separate approval before local runtime DDL or ADMIN bootstrap. Preserve protected backups through the approved retention window. Do not rerun the foundation migration.
+**Next bounded task:** Review the [Phase 03G security report](PHASE_03G_SECURITY_REVIEW.md) and proposed SQL. Privately verify the owner's Supabase Auth UUID, test the proposed ACLs in a disposable environment under separate authorization, and seek explicit approval before local runtime DDL or ADMIN bootstrap. Preserve protected backups through the approved retention window. Do not rerun the foundation migration.
 
 ## Phase 02A UI scope
 
