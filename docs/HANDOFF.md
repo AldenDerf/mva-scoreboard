@@ -1,4 +1,39 @@
-# Agent handoff — Phase 04 live scoring foundation
+# Agent handoff — Phase 02 secure live MVA integration
+
+**Branches:**
+- `mva-scoreboard`: `feat/phase-02-mva-integration` (based on `main` at `673e27f`).
+- `mva`: `feat/phase-02-scoreboard-catalog-api` (based on `main` at `7be8559`).
+
+**Scope & Implementation:**
+1. **MVA Catalog Integration API (`AldenDerf/mva`):**
+   - Implemented `lib/integrations/scoreboard-catalog.ts` and `lib/integrations/scoreboard-catalog-prisma.ts` with read-only Prisma queries selecting only minimal tournament, division, registration, and team identity fields.
+   - Implemented four machine-authenticated Route Handlers:
+     - `GET /api/integrations/scoreboard/tournaments`
+     - `GET /api/integrations/scoreboard/divisions?tournamentId={uuid}`
+     - `GET /api/integrations/scoreboard/teams?tournamentId={uuid}&divisionId={uuid}`
+     - `POST /api/integrations/scoreboard/validate-matchup`
+   - Enforced SHA-256 + `crypto.timingSafeEqual` Bearer token verification (`MVA_SCOREBOARD_INTEGRATION_TOKEN`), strict `405 Method Not Allowed` responses, tournament eligibility policy (`REGISTRATION_CLOSED`, `ONGOING`), `VERIFIED` registration filtering, cross-tournament/division rejection, and HTTPS logo host allowlist validation.
+   - Updated `mva/proxy.ts` to bypass cookie session refresh on `/api/integrations/scoreboard/*`.
+2. **Scoreboard Catalog Client & Server API (`AldenDerf/mva-scoreboard`):**
+   - Implemented server-only `lib/integrations/mva-catalog-client.ts` with input UUID validation, request timeouts, `cache: "no-store"`, bounded pagination (`1..100`), runtime schema/contract validation, private-field leak rejection, and logo URL host allowlisting.
+   - Implemented scoreboard ADMIN-protected server routes (`/api/catalog/tournaments`, `/api/catalog/divisions`, `/api/catalog/teams`, `/api/catalog/validate-matchup`) in `lib/server/catalog-api.ts` and `app/api/catalog/*`.
+3. **Match Setup UI & Official Match Persistence Design:**
+   - Implemented `lib/integrations/match-setup-state.ts` and `components/official-match-setup.tsx`, integrated into `components/match-list.tsx` alongside the preserved test-match creation form.
+   - Prepared review-only Phase 03 persistence SQL proposal `db/proposals/02/01_official_match_creation.mva_dev.review.sql` and full engineering report in [docs/PHASE_02_MVA_INTEGRATION.md](PHASE_02_MVA_INTEGRATION.md).
+   - Zero database migrations were applied; `mva_dev`, Supabase, and Vercel remain 100% untouched.
+
+**Checks:**
+- `mva`: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (8/8 passing), `pnpm build`, and `git diff --check` passed.
+- `mva-scoreboard`: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (34 passed / 1 DB-gated skipped), `pnpm build`, and `git diff --check` passed.
+
+**Next action:**
+1. Owner review and approval of `db/proposals/03g/01_runtime_lookup.review.sql`, `db/proposals/04/01_live_scoring.mva_dev.review.sql`, `db/proposals/04/02_scoring_commands.mva_dev.review.sql`, and `db/proposals/02/01_official_match_creation.mva_dev.review.sql`.
+2. Provision `MVA_SCOREBOARD_INTEGRATION_TOKEN` and `MVA_CATALOG_BASE_URL` in `.env.local` on both local servers (`localhost:3000` for `mva` and `localhost:3001` for `mva-scoreboard`).
+3. After database approval and backup, wire `POST /api/matches` official match creation to `validateMatchupWithMva` + `scoreboard.phase02_create_official_match` and perform manual browser and OBS Browser Source verification.
+
+---
+
+# Earlier handoff — Phase 04 live scoring foundation
 
 **Branch:** `feat/phase-04-live-scoring-foundation`, based on `main` at PR #7 merge `0a7117f`.
 
@@ -17,45 +52,3 @@ See [Phase 04 report](PHASE_04_IMPLEMENTATION.md).
 - Isolated test rehearsal executed in disposable PostgreSQL 18 clusters (`initdb` on ephemeral loopback port, e.g. 55442): applied foundation, runtime lookup, schema, and command proposals; executed `tests/phase04-sql-integration.sql` in a rollback transaction; and executed full Node.js test suite with `PHASE04_TEST_DATABASE_URL`.
 - 29/29 tests passed (including `tests/live-scoring-db.test.ts`). Cluster was cleanly stopped and all temporary files removed.
 - Production Supabase and Vercel remain untouched.
-
-**Approvals needed:**
-1. Owner review and approval of the Phase 04 SQL proposals (`01_live_scoring.mva_dev.review.sql`, `02_scoring_commands.mva_dev.review.sql`) for local `mva_dev`.
-2. Fresh local backup before application.
-3. Activation of `scoreboard_runtime` LOGIN credential on `mva_dev`.
-4. Initial ADMIN role grant bootstrap.
-5. Separate review and migrations for production Supabase and Vercel.
-
-**Checks:**
-- `pnpm lint`: passed (0 errors).
-- `pnpm exec tsc --noEmit`: passed (0 errors).
-- `pnpm test`: 28 passed / 1 skipped without DB; 29/29 passed when run against disposable PostgreSQL 18 runtime.
-- `pnpm build`: passed (all routes compiled, partial prerender and dynamic routes verified).
-- `git diff --check`: passed.
-
----
-
-# Earlier handoff — Phase 03I practice corrections
-
-**Refinement:** Correction controls no longer ask operators to type reasons. Point corrections save directly, serving switches immediately, and same-winner historical score edits save directly. Changing a confirmed-set winner, reopening the previous set, confirming a set, and starting a new practice match retain focused confirmations. In-memory correction events now include an automatic description, timestamp, affected set, and before/after values. The same progression validation and immediately-previous-set reopening restriction remain.
-
-**Branch:** `feat/phase-03i-practice-corrections`, based on unmerged Phase 03H commit `9f9d893`. Practice only: no SQL, Auth, production data, or deployment changes.
-
-**Scope:** Team-specific subtraction, direct point replacement, manual serve selection, completed-set correction, and a constrained current-set reconciliation are in `lib/scoring/practice.ts` and `components/practice-scorekeeper.tsx`. Confirmed results derive sets won. A current set can be moved backward only by explicitly reopening the immediately previous confirmed set while the new set is empty; other jumps are rejected and need a separate history reconciliation design. Historical corrections that make existing later sets impossible are rejected. Correction history is in memory only; refresh clears it. The production route remains guarded by the existing development layout.
-
-**Next action:** Review Phase 03I practice behavior with a scorekeeper, especially confirmed-set winner changes and the constrained reopen flow. Continue server-authoritative transaction design separately after production target and authorization approvals. Do not treat in-memory events as a durable audit log.
-
-**Checks:** `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (26/26), `pnpm build`, and `git diff --check` pass. Production `/dev/practice` returned HTTP 404 on the local build. Test/build worker spawning required unsandboxed execution after `spawn EPERM` in the sandbox. Browser interaction and OBS checks were not performed because no browser surface or OBS session was available.
-
-**Refinement checks:** `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (28/28), `pnpm build`, and `git diff --check` passed. The test runner needed unsandboxed execution after the sandbox blocked worker spawning. No browser or OBS interaction was performed for this refinement.
-
----
-
-**Branch:** `feat/phase-03h-practice-scoring`. **Base:** updated `main` at `f4a8436`. **Database state:** local `mva_dev` unchanged from Phase 03E; no production SQL, role, ADMIN grant, or Auth change. Two separate PostgreSQL 18 rehearsal clusters were stopped and removed after testing.
-
-Read [Phase 03H report](PHASE_03H_REHEARSAL_AND_PRACTICE.md) for SQL rehearsal evidence, scoring rules, UI scope, Vercel inspection, test results, and online beta blockers. The deterministic engine is in `lib/scoring/practice.ts`; the only interactive scoring page is `/dev/practice`, hidden by the development layout in production. React memory in one tab is its only state. `/dev/overlay` remains static and read-only. Protected application authorization still fails closed at `ACCESS_PENDING`.
-
-**Changed files:** scoring domain and tests; practice page/component; shared overlay component; development navigation/dashboard; `docs/PLAN.md`, this handoff, and the Phase 03H report. Foundation and Phase 03G SQL files were not modified.
-
-**Checks:** disposable role, RLS, bootstrap, audit rollback and revocation tests passed; `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test` (20/20), `pnpm build`, and `git diff --check` passed. Local HTTP: development practice/overlay 200, production practice 404. Initial sandbox Node worker attempts failed with `spawn EPERM`; elevated reruns passed. Browser click-through and actual OBS/Facebook Live were not tested because no browser surface was available.
-
-**Next action:** owner-review the production Supabase target and backup/rollback plan, then prepare production-specific scoreboard schema and restricted runtime SQL for approval. After authorization, implement server-authoritative scoring and a synchronized public overlay, deploy a separate scoreboard preview, and test from the scorekeeper/OBS machine. The Thursday online beta remains blocked until those steps pass.

@@ -86,7 +86,7 @@ Local development uses disposable/test data and credentials. Preview should use 
 
 `mva/lib/public/teams.ts` selects only `VERIFIED` registrations for one automatically chosen active league (`ONGOING`, `OPEN_FOR_REGISTRATION`, `REGISTRATION_CLOSED`), deduplicates by team id, and explicitly avoids private registration fields. That existing directory is **not** a multi-tournament integration API; it also exposes roster-oriented data elsewhere in the file. `mva/lib/admin/registration-create.ts` filters leagues for creating registrations, which is a different decision from scoreboard eligibility. A `VERIFIED` registration is the recommended team eligibility baseline. MVA must decide which league statuses can be scheduled/scored, including whether `ADMIN_REGISTRATION_ONLY` and `COMPLETED` are allowed for historical setup. Never infer team eligibility from payment tables or roster data in the scoreboard contract.
 
-### Proposed narrow read contract (not present in MVA)
+### Narrow read contract (implemented in Phase 02 — see [Phase 02 report](PHASE_02_MVA_INTEGRATION.md))
 
 Use an MVA-owned authenticated server-to-server endpoint or equivalently restricted read model, versioned and scoped to this consumer. Example logical operations (paths are illustrative, not existing routes):
 

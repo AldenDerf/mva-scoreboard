@@ -1,4 +1,9 @@
-/** Proposed MVA-owned server-to-server contract. No endpoint exists yet. */
+/**
+ * MVA-owned server-to-server catalog contract for MVA Live Scoreboard.
+ *
+ * All responses are validated at runtime in `lib/integrations/mva-catalog-client.ts`
+ * before reaching application logic or UI components.
+ */
 export type MvaTournamentStatus =
   | "DRAFT"
   | "OPEN_FOR_REGISTRATION"
@@ -7,6 +12,14 @@ export type MvaTournamentStatus =
   | "ONGOING"
   | "COMPLETED"
   | "ARCHIVED";
+
+export const ELIGIBLE_MVA_TOURNAMENT_STATUSES = [
+  "REGISTRATION_CLOSED",
+  "ONGOING",
+] as const;
+
+export type EligibleMvaTournamentStatus =
+  (typeof ELIGIBLE_MVA_TOURNAMENT_STATUSES)[number];
 
 export interface CatalogPage<T> {
   items: T[];
@@ -17,7 +30,7 @@ export interface TournamentSummary {
   id: string; // UUID
   name: string;
   year: number | null;
-  status: MvaTournamentStatus;
+  status: EligibleMvaTournamentStatus;
 }
 
 export interface DivisionSummary {
@@ -47,7 +60,3 @@ export interface ValidatedMatchup {
   teamB: EligibleTeam;
   validatedAt: string; // ISO 8601, advisory only; create must use a fresh response
 }
-
-/** Runtime validation required at every server boundary: UUIDs, bounded strings,
- * known enum values, response size, HTTPS logo allowlist, and two distinct teams.
- * TypeScript interfaces alone do not validate untrusted MVA responses. */

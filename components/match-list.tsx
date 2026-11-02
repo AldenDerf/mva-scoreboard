@@ -1,9 +1,9 @@
-
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { MatchSummary } from "@/lib/db/scoreboard";
+import { OfficialMatchSetup } from "@/components/official-match-setup";
 
 export function MatchList({ isAdmin }: { isAdmin: boolean }) {
   const [matches, setMatches] = useState<MatchSummary[]>([]);
@@ -56,8 +56,10 @@ export function MatchList({ isAdmin }: { isAdmin: boolean }) {
       <p className="mt-2 text-sm text-[var(--muted)]">Scores here are stored by the server. Test matches are labeled and separate from official MVA results.</p>
     </header>
     <p role="status" aria-live="polite" className="text-sm font-semibold">{notice}</p>
+    {isAdmin && <OfficialMatchSetup />}
     {isAdmin && <form onSubmit={create} className="rounded-2xl border border-[var(--border)] bg-[var(--paper)] p-5">
       <h2 className="text-xl font-bold">Create test match</h2>
+      <p className="mt-1 text-xs text-[var(--muted)]">Practice and orientation only. Does not use official MVA tournament records.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-bold">Team A<input required maxLength={80} className={field} value={teamA} onChange={(event) => setTeamA(event.target.value)} /></label>
         <label className="text-sm font-bold">Team B<input required maxLength={80} className={field} value={teamB} onChange={(event) => setTeamB(event.target.value)} /></label>
