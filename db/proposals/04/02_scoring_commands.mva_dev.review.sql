@@ -6,7 +6,7 @@ BEGIN
   IF current_database() <> 'mva_dev'
      OR inet_server_addr() <> inet '::1'
      OR inet_server_port() <> 5432
-     OR (SELECT system_identifier FROM pg_control_system()) <> '7629597861964584196'
+     OR (SELECT system_identifier FROM pg_control_system()) <> 7629597861964584196
      OR to_regprocedure('scoreboard.phase04_snapshot(uuid,uuid)') IS NULL
      OR to_regprocedure('scoreboard.phase04_apply(uuid,uuid,uuid,bigint,jsonb)') IS NOT NULL THEN
     RAISE EXCEPTION 'Phase 04 command target or prerequisite guard failed';

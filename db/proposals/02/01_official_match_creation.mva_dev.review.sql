@@ -10,9 +10,10 @@ BEGIN
   IF current_database() <> 'mva_dev'
      OR inet_server_addr() <> inet '::1'
      OR inet_server_port() <> 5432
-     OR (SELECT system_identifier FROM pg_control_system()) <> '7629597861964584196'
+     OR (SELECT system_identifier FROM pg_control_system()) <> 7629597861964584196
      OR to_regclass('scoreboard.matches') IS NULL
      OR to_regprocedure('scoreboard.phase04_role(uuid,uuid)') IS NULL
+     OR to_regprocedure('scoreboard.phase02_create_official_match(uuid,uuid,uuid,uuid,uuid,uuid,uuid,text,text,text,text,text,text,smallint,character)') IS NOT NULL
      OR to_regrole('scoreboard_runtime') IS NULL
      OR to_regrole('scoreboard_phase04_owner') IS NULL THEN
     RAISE EXCEPTION 'Phase 02 official match creation prerequisite or target guard failed';
