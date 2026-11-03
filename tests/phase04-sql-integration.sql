@@ -99,6 +99,67 @@ BEGIN
      OR v_result->'state'->'sets'->0->>'winner' IS NOT NULL THEN
     RAISE EXCEPTION 'previous set reopening failed';
   END IF;
+
+  -- Test MVA ADMIN inheritance, revocation, and official match creation
+  IF scoreboard.reconcile_mva_admin_role(
+       '44444444-4444-4444-8444-444444444444'::uuid,
+       true
+     ) <> 'ADMIN' THEN
+    RAISE EXCEPTION 'MVA admin inheritance failed';
+  END IF;
+
+  v_id := scoreboard.phase02_create_official_match(
+    '44444444-4444-4444-8444-444444444444'::uuid,
+    '10000000-0000-4000-8000-000000000001'::uuid,
+    '10000000-0000-4000-8000-000000000002'::uuid,
+    '10000000-0000-4000-8000-000000000003'::uuid,
+    '10000000-0000-4000-8000-000000000004'::uuid,
+    '10000000-0000-4000-8000-000000000005'::uuid,
+    '10000000-0000-4000-8000-000000000006'::uuid,
+    'MVA Governors Cup 2026',
+    'Men''s Open',
+    'Mahatao Waves',
+    'San Carlos Spikers',
+    'https://project-ref.supabase.co/storage/v1/object/public/logos/waves.png',
+    NULL,
+    5::smallint,
+    'B'::char(1)
+  );
+  v_state := scoreboard.phase04_snapshot(
+    '44444444-4444-4444-8444-444444444444'::uuid,
+    v_id
+  );
+  IF (v_state->>'isTest')::boolean IS NOT false
+     OR (v_state->>'bestOf')::int <> 5
+     OR v_state->>'serving' <> 'B' THEN
+    RAISE EXCEPTION 'official match snapshot failed';
+  END IF;
+  v_public := (v_state->>'publicId')::uuid;
+  IF scoreboard.phase04_overlay(v_public)->>'tournament' <> 'MVA Governors Cup 2026'
+     OR (scoreboard.phase04_overlay(v_public)->>'isTest')::boolean IS NOT false THEN
+    RAISE EXCEPTION 'official match overlay snapshot failed';
+  END IF;
+
+  -- Revoking MVA admin status revokes MVA_ADMIN grant
+  IF scoreboard.reconcile_mva_admin_role(
+       '44444444-4444-4444-8444-444444444444'::uuid,
+       false
+     ) IS NOT NULL THEN
+    RAISE EXCEPTION 'MVA admin revocation failed';
+  END IF;
+  BEGIN
+    PERFORM scoreboard.phase04_snapshot(
+      '44444444-4444-4444-8444-444444444444'::uuid,
+      v_id
+    );
+    RAISE EXCEPTION 'revoked MVA admin unexpectedly accessed match';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  -- Independently granted SCOREBOARD ADMIN is preserved when MVA admin is false
+  IF scoreboard.reconcile_mva_admin_role(v_actor, false) <> 'ADMIN' THEN
+    RAISE EXCEPTION 'independent SCOREBOARD ADMIN was not preserved';
+  END IF;
 END $test$;
 RESET ROLE;
 ROLLBACK;
