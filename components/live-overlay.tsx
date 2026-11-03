@@ -8,7 +8,9 @@ function displayFor(state: OverlaySnapshot): OverlayDisplay {
   const current = state.sets.at(-1);
   const team = (side: "A" | "B") => {
     const name = side === "A" ? state.teamA : state.teamB;
+    const logoUrl = side === "A" ? state.teamALogoUrl : state.teamBLogoUrl;
     return { name, short: name.split(/\s+/).map((part) => part[0]).join("").slice(0, 3).toUpperCase(),
+      logoUrl,
       points: side === "A" ? current?.teamA ?? 0 : current?.teamB ?? 0,
       sets: state.sets.filter((set) => set.winner === side).length,
       serving: state.status === "LIVE" && state.serving === side };

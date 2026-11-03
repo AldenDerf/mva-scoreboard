@@ -1,4 +1,4 @@
-import type { ScoreboardAuthorization } from "../auth/authorization.ts";
+import type { ScoreboardAuthorization } from "../auth/evaluate-authorization.ts";
 import {
   fetchEligibleTeamsPage,
   fetchEligibleTournamentsPage,
@@ -301,9 +301,9 @@ export async function handleScoreboardValidateMatchup(
         matchup,
         bestOf,
         serving,
-        officialPersistenceEnabled: false,
+        officialPersistenceEnabled: true,
         persistenceNotice:
-          "Official matchup verified with MVA. Official match persistence is gated pending separate database migration review and approval.",
+          "Official matchup verified with MVA and ready for creation.",
       },
       200
     );

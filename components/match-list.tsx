@@ -56,7 +56,7 @@ export function MatchList({ isAdmin }: { isAdmin: boolean }) {
       <p className="mt-2 text-sm text-[var(--muted)]">Scores here are stored by the server. Test matches are labeled and separate from official MVA results.</p>
     </header>
     <p role="status" aria-live="polite" className="text-sm font-semibold">{notice}</p>
-    {isAdmin && <OfficialMatchSetup />}
+    {isAdmin && <OfficialMatchSetup onMatchCreated={async () => { setNotice("Official match created."); await load(); }} />}
     {isAdmin && <form onSubmit={create} className="rounded-2xl border border-[var(--border)] bg-[var(--paper)] p-5">
       <h2 className="text-xl font-bold">Create test match</h2>
       <p className="mt-1 text-xs text-[var(--muted)]">Practice and orientation only. Does not use official MVA tournament records.</p>

@@ -1,5 +1,15 @@
-import type { StoredAction } from "@/lib/db/scoreboard";
-import { getScoreboardAuthorization, type ScoreboardAuthorization } from "@/lib/auth/authorization";
+import {
+  createOfficialMatch,
+  createTestMatch,
+  type CreateOfficialMatchInput,
+  type StoredAction,
+} from "../db/scoreboard.ts";
+import type { ScoreboardAuthorization } from "../auth/evaluate-authorization.ts";
+import {
+  MvaCatalogClientError,
+  validateMatchupWithMva,
+  type MvaCatalogClientConfig,
+} from "../integrations/mva-catalog-client.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const validUuid = (value: unknown): value is string =>
@@ -52,6 +62,7 @@ export function sameOrigin(request: Request): boolean {
   }
 }
 export async function apiAuth(): Promise<ScoreboardAuthorization | Response> {
+  const { getScoreboardAuthorization } = await import("../auth/authorization.ts");
   const auth = await getScoreboardAuthorization();
   if (!auth.isAuthenticated) return Response.json({ error: "Sign in required." }, { status: 401 });
   if (!auth.isAuthorized) return Response.json({ error: auth.status === "UNAVAILABLE" ?
@@ -67,4 +78,169 @@ export function apiError(error: unknown): Response {
   if (["22023", "22003", "23514", "55000"].includes(code))
     return Response.json({ error: "Action rejected by the current match rules." }, { status: 422 });
   return Response.json({ error: "Scoreboard service temporarily unavailable." }, { status: 503 });
+}
+
+export interface CreateMatchRouteDeps {
+  authProvider?: () => Promise<ScoreboardAuthorization | Response>;
+  clientConfig?: MvaCatalogClientConfig;
+  createOfficialMatchFn?: (
+    actor: string,
+    input: CreateOfficialMatchInput
+  ) => Promise<string>;
+  createTestMatchFn?: (
+    actor: string,
+    teamA: string,
+    teamB: string,
+    bestOf: 3 | 5,
+    serving: "A" | "B"
+  ) => Promise<string>;
+}
+
+export async function handleCreateMatchRequest(
+  request: Request,
+  deps?: CreateMatchRouteDeps
+): Promise<Response> {
+  if (!sameOrigin(request)) {
+    return Response.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+  const auth = await (deps?.authProvider ?? apiAuth)();
+  if (auth instanceof Response) return auth;
+  if (auth.role !== "ADMIN") {
+    return Response.json({ error: "ADMIN required." }, { status: 403 });
+  }
+  if (Number(request.headers.get("content-length")) > 4096) {
+    return Response.json({ error: "Request too large." }, { status: 413 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON." }, { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json({ error: "Invalid match settings." }, { status: 400 });
+  }
+
+  const input = body as Record<string, unknown>;
+  const bestOf = input.bestOf;
+  const serving = input.serving;
+  if ((bestOf !== 3 && bestOf !== 5) || (serving !== "A" && serving !== "B")) {
+    return Response.json(
+      { error: "Enter two different teams and valid match rules." },
+      { status: 400 }
+    );
+  }
+
+  const isOfficialPayload =
+    input.mode === "official" ||
+    "tournamentId" in input ||
+    "divisionId" in input ||
+    "registrationAId" in input ||
+    "registrationBId" in input;
+
+  if (isOfficialPayload) {
+    const tournamentId =
+      typeof input.tournamentId === "string" ? input.tournamentId.trim() : "";
+    const divisionId =
+      typeof input.divisionId === "string" ? input.divisionId.trim() : "";
+    const registrationAId =
+      typeof input.registrationAId === "string"
+        ? input.registrationAId.trim()
+        : "";
+    const registrationBId =
+      typeof input.registrationBId === "string"
+        ? input.registrationBId.trim()
+        : "";
+
+    if (
+      !validUuid(tournamentId) ||
+      !validUuid(divisionId) ||
+      !validUuid(registrationAId) ||
+      !validUuid(registrationBId) ||
+      registrationAId.toLowerCase() === registrationBId.toLowerCase()
+    ) {
+      return Response.json(
+        {
+          error:
+            "Select an eligible tournament, division, two distinct teams, match format, and first serving team.",
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      // Authoritative MVA revalidation immediately before creation.
+      // Any client-supplied team/tournament/division/logo fields are ignored.
+      const matchup = await validateMatchupWithMva(
+        {
+          tournamentId,
+          divisionId,
+          registrationAId,
+          registrationBId,
+        },
+        deps?.clientConfig
+      );
+
+      const createOfficial = deps?.createOfficialMatchFn ?? createOfficialMatch;
+      const id = await createOfficial(auth.userId!, {
+        mvaTournamentId: matchup.tournament.id,
+        mvaDivisionId: matchup.division.id,
+        mvaTeamAId: matchup.teamA.teamId,
+        mvaTeamBId: matchup.teamB.teamId,
+        mvaRegistrationAId: matchup.teamA.registrationId,
+        mvaRegistrationBId: matchup.teamB.registrationId,
+        tournamentName: matchup.tournament.name,
+        divisionName: matchup.division.name,
+        teamAName: matchup.teamA.name,
+        teamBName: matchup.teamB.name,
+        teamALogoUrl: matchup.teamA.logoUrl,
+        teamBLogoUrl: matchup.teamB.logoUrl,
+        bestOf,
+        serving,
+      });
+
+      return Response.json(
+        { id, matchup },
+        { status: 201, headers: { "Cache-Control": "private, no-store" } }
+      );
+    } catch (error) {
+      if (error instanceof MvaCatalogClientError) {
+        return Response.json(
+          { error: error.message, code: error.code },
+          {
+            status: error.httpStatus,
+            headers: { "Cache-Control": "private, no-store" },
+          }
+        );
+      }
+      return apiError(error);
+    }
+  }
+
+  const teamA = typeof input.teamA === "string" ? input.teamA.trim() : "";
+  const teamB = typeof input.teamB === "string" ? input.teamB.trim() : "";
+  if (
+    !teamA ||
+    !teamB ||
+    teamA.length > 80 ||
+    teamB.length > 80 ||
+    teamA.toLocaleLowerCase() === teamB.toLocaleLowerCase()
+  ) {
+    return Response.json(
+      { error: "Enter two different teams and valid match rules." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const createTest = deps?.createTestMatchFn ?? createTestMatch;
+    const id = await createTest(auth.userId!, teamA, teamB, bestOf, serving);
+    return Response.json(
+      { id },
+      { status: 201, headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    return apiError(error);
+  }
 }

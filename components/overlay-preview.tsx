@@ -1,4 +1,8 @@
-export type OverlayTeam = { name: string; short: string; points: number; sets: number; serving: boolean };
+"use client";
+
+import { useState } from "react";
+
+export type OverlayTeam = { name: string; short: string; logoUrl?: string | null; points: number; sets: number; serving: boolean };
 export type OverlayDisplay = { teams: [OverlayTeam, OverlayTeam]; currentSet: number; bestOf: 3 | 5; status: string; label: string; tournament: string; division: string };
 
 const sample: OverlayDisplay = {
@@ -9,6 +13,29 @@ const sample: OverlayDisplay = {
     { name: "The Lighthouse Collective", short: "LC", points: 21, sets: 0, serving: false },
   ],
 };
+
+function OverlayTeamBadge({ team }: { team: OverlayTeam }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showLogo = Boolean(team.logoUrl && failedUrl !== team.logoUrl);
+
+  if (showLogo) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={team.logoUrl!}
+        alt={`${team.name} official logo`}
+        className="overlay-logo size-10 shrink-0 rounded-lg border border-white/20 bg-white/95 object-contain p-1 sm:size-12"
+        onError={() => setFailedUrl(team.logoUrl ?? null)}
+      />
+    );
+  }
+
+  return (
+    <span className="overlay-logo flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-xs font-black text-blue-100 sm:size-12" aria-label={`${team.name} logo placeholder`}>
+      {team.short}
+    </span>
+  );
+}
 
 export function OverlayPreview({ display = sample, embedded = false, ariaLabel = "Development-only scoreboard overlay preview" }: { display?: OverlayDisplay; embedded?: boolean; ariaLabel?: string }) {
   return (
@@ -21,7 +48,7 @@ export function OverlayPreview({ display = sample, embedded = false, ariaLabel =
         <div className="overlay-columns grid grid-cols-[minmax(0,1fr)_54px_70px] px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[.14em] text-blue-200/70 sm:grid-cols-[minmax(0,1fr)_70px_94px] sm:px-6"><span>Teams</span><span className="text-center">Sets</span><span className="text-center">Points</span></div>
         {display.teams.map((team, index) => <div key={index} className={`overlay-team-row grid grid-cols-[minmax(0,1fr)_54px_70px] items-center gap-0 px-4 py-2 sm:grid-cols-[minmax(0,1fr)_70px_94px] sm:px-6 ${index === 0 ? "border-b border-white/12" : ""}`}>
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <span className="overlay-logo flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-xs font-black text-blue-100 sm:size-12" aria-label={`${team.name} logo placeholder`}>{team.short}</span>
+            <OverlayTeamBadge team={team} />
             <div className="min-w-0"><div className="overlay-team-name truncate text-[clamp(.9rem,2.2vw,1.35rem)] font-bold tracking-[-.03em]" title={team.name}>{team.name}</div>{team.serving && <div className="overlay-serving mt-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-amber-300"><span className="size-1.5 rounded-full bg-amber-300" aria-hidden="true" />Serving</div>}</div>
           </div>
           <div className="overlay-sets tabular text-center text-xl font-semibold text-blue-200 sm:text-2xl">{team.sets}</div>

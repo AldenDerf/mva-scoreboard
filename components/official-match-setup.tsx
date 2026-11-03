@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,10 +64,15 @@ function TeamBadgePreview({
   );
 }
 
-export function OfficialMatchSetup() {
+export function OfficialMatchSetup({
+  onMatchCreated,
+}: {
+  onMatchCreated?: (matchId: string) => void | Promise<void>;
+}) {
   const [state, setState] = useState<OfficialMatchSetupState>(() =>
     createInitialMatchSetupState()
   );
+  const [createdMatchId, setCreatedMatchId] = useState<string | null>(null);
 
   const loadTournaments = useCallback(async () => {
     setState((prev) => ({
@@ -207,6 +213,7 @@ export function OfficialMatchSetup() {
   }, [loadTournaments]);
 
   function onTournamentChange(nextTournamentId: string) {
+    setCreatedMatchId(null);
     setState((prev) => selectTournamentState(prev, nextTournamentId));
     if (nextTournamentId.trim()) {
       void loadDivisions(nextTournamentId.trim());
@@ -214,6 +221,7 @@ export function OfficialMatchSetup() {
   }
 
   function onDivisionChange(nextDivisionId: string) {
+    setCreatedMatchId(null);
     const currentTournamentId = state.tournamentId;
     setState((prev) => selectDivisionState(prev, nextDivisionId));
     if (currentTournamentId && nextDivisionId.trim()) {
@@ -225,18 +233,21 @@ export function OfficialMatchSetup() {
     event.preventDefault();
     if (!canSubmitOfficialMatchSetup(state)) return;
 
+    setCreatedMatchId(null);
     setState((prev) => ({
       ...prev,
       validationStatus: "validating",
       validatedMatchup: null,
-      validationMessage: "Verifying matchup eligibility with MVA…",
+      validationMessage:
+        "Verifying matchup eligibility with MVA and creating official match…",
     }));
 
     try {
-      const response = await fetch("/api/catalog/validate-matchup", {
+      const response = await fetch("/api/matches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mode: "official",
           tournamentId: state.tournamentId,
           divisionId: state.divisionId,
           registrationAId: state.registrationAId,
@@ -246,23 +257,26 @@ export function OfficialMatchSetup() {
         }),
       });
       const body = (await response.json()) as {
+        id?: string;
         matchup?: ValidatedMatchup;
-        persistenceNotice?: string;
         error?: string;
       };
-      if (!response.ok || !body.matchup) {
+      if (!response.ok || !body.id || !body.matchup) {
         throw new Error(
           body.error ?? "Matchup failed authoritative MVA validation."
         );
       }
+      setCreatedMatchId(body.id);
       setState((prev) => ({
         ...prev,
+        registrationAId: "",
+        registrationBId: "",
         validationStatus: "validated",
         validatedMatchup: body.matchup!,
         validationMessage:
-          body.persistenceNotice ??
-          "Official matchup verified with MVA. Official match persistence is gated pending separate database approval.",
+          "Official match verified with MVA and created for live scoring.",
       }));
+      await onMatchCreated?.(body.id);
     } catch (error) {
       setState((prev) => ({
         ...prev,
@@ -669,18 +683,27 @@ export function OfficialMatchSetup() {
                 </div>
               </dl>
             )}
+            {createdMatchId && (
+              <div className="mt-3">
+                <Link
+                  href={`/matches/${createdMatchId}`}
+                  className="inline-flex min-h-10 items-center rounded-xl bg-[#2455cf] px-4 py-2 text-xs font-bold text-white"
+                >
+                  Open live scorekeeper →
+                </Link>
+              </div>
+            )}
           </div>
         )}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={!canSubmit}>
             {state.validationStatus === "validating"
-              ? "Validating matchup…"
-              : "Validate official matchup"}
+              ? "Creating official match…"
+              : "Create official match"}
           </Button>
           <span className="text-xs text-[var(--muted)]">
-            Official match creation persistence is gated pending separate Phase
-            03 database review.
+            Revalidates MVA eligibility live and snapshots official team identities and logos.
           </span>
         </div>
       </form>
