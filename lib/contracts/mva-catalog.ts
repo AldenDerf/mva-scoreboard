@@ -60,3 +60,9 @@ export interface ValidatedMatchup {
   teamB: EligibleTeam;
   validatedAt: string; // ISO 8601, advisory only; create must use a fresh response
 }
+
+export interface VerifyAdminStatusResponse {
+  authUserId: string;
+  isActiveAdmin: boolean;
+  verifiedAt: string;
+}

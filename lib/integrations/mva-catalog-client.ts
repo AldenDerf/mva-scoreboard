@@ -7,6 +7,7 @@ import {
   type TournamentSummary,
   type ValidatedMatchup,
   type ValidateMatchupRequest,
+  type VerifyAdminStatusResponse,
 } from "../contracts/mva-catalog.ts";
 
 /**
@@ -767,5 +768,67 @@ export async function validateMatchupWithMva(
     teamA,
     teamB,
     validatedAt,
+  };
+}
+
+export async function verifyMvaAdminStatus(
+  authUserId: string,
+  config?: MvaCatalogClientConfig
+): Promise<VerifyAdminStatusResponse> {
+  if (!isValidCatalogUuid(authUserId)) {
+    throw new MvaCatalogClientError(
+      "INVALID_INPUT",
+      "A valid Supabase Auth UUID is required for MVA admin verification.",
+      400
+    );
+  }
+
+  const cleanAuthUserId = authUserId.trim();
+  const raw = await requestCatalogJson(
+    "/api/integrations/scoreboard/verify-admin",
+    {
+      method: "POST",
+      body: JSON.stringify({ authUserId: cleanAuthUserId }),
+    },
+    config
+  );
+
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new MvaCatalogClientError(
+      "INVALID_RESPONSE",
+      "Invalid admin verification response from MVA.",
+      502
+    );
+  }
+
+  const obj = raw as Record<string, unknown>;
+  assertNoForbiddenKeys(obj);
+
+  const keys = Object.keys(obj).sort().join(",");
+  const returnedUserId =
+    typeof obj.authUserId === "string" ? obj.authUserId.trim() : "";
+  const isActiveAdmin = obj.isActiveAdmin;
+  const verifiedAt =
+    typeof obj.verifiedAt === "string" ? obj.verifiedAt.trim() : "";
+
+  if (
+    keys !== "authUserId,isActiveAdmin,verifiedAt" ||
+    !isValidCatalogUuid(returnedUserId) ||
+    returnedUserId.toLowerCase() !== cleanAuthUserId.toLowerCase() ||
+    typeof isActiveAdmin !== "boolean" ||
+    !verifiedAt ||
+    Number.isNaN(Date.parse(verifiedAt))
+  ) {
+    throw new MvaCatalogClientError(
+      "INVALID_RESPONSE",
+      "MVA admin verification response failed contract validation.",
+      502
+    );
+  }
+
+  return {
+    authUserId: returnedUserId,
+    isActiveAdmin,
+    verifiedAt,
   };
 }

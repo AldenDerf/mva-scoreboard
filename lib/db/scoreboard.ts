@@ -48,6 +48,22 @@ export interface OverlaySnapshot {
   isTest: boolean;
   sets: StoredSet[];
 }
+export interface CreateOfficialMatchInput {
+  mvaTournamentId: string;
+  mvaDivisionId: string;
+  mvaTeamAId: string;
+  mvaTeamBId: string;
+  mvaRegistrationAId: string;
+  mvaRegistrationBId: string;
+  tournamentName: string;
+  divisionName: string;
+  teamAName: string;
+  teamBName: string;
+  teamALogoUrl: string | null;
+  teamBLogoUrl: string | null;
+  bestOf: 3 | 5;
+  serving: "A" | "B";
+}
 
 let pool: Pool | undefined;
 export async function closeScoreboardPool(): Promise<void> {
@@ -89,6 +105,17 @@ export async function activeRoleForUser(userId: string): Promise<"ADMIN" | "SCOR
   if (role === null || role === "ADMIN" || role === "SCOREKEEPER") return role;
   throw new Error("Invalid scoreboard role response.");
 }
+export async function reconcileMvaAdminRole(
+  userId: string,
+  isActiveMvaAdmin: boolean
+): Promise<"ADMIN" | "SCOREKEEPER" | null> {
+  const role = await scalar<string | null>(
+    "SELECT scoreboard.reconcile_mva_admin_role($1::uuid,$2::boolean) AS value",
+    [userId, isActiveMvaAdmin]
+  );
+  if (role === null || role === "ADMIN" || role === "SCOREKEEPER") return role;
+  throw new Error("Invalid scoreboard role response.");
+}
 export function listMatches(actor: string): Promise<MatchSummary[]> {
   return scalar("SELECT scoreboard.phase04_list_matches($1::uuid) AS value", [actor]);
 }
@@ -98,6 +125,28 @@ export function getMatch(actor: string, id: string): Promise<StoredMatch | null>
 export function createTestMatch(actor: string, teamA: string, teamB: string, bestOf: 3 | 5, serving: "A" | "B"): Promise<string> {
   return scalar("SELECT scoreboard.phase04_create_test_match($1::uuid,$2::text,$3::text,$4::smallint,$5::char(1)) AS value",
     [actor, teamA, teamB, bestOf, serving]);
+}
+export function createOfficialMatch(actor: string, input: CreateOfficialMatchInput): Promise<string> {
+  return scalar(
+    "SELECT scoreboard.phase02_create_official_match($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6::uuid,$7::uuid,$8::text,$9::text,$10::text,$11::text,$12::text,$13::text,$14::smallint,$15::char(1)) AS value",
+    [
+      actor,
+      input.mvaTournamentId,
+      input.mvaDivisionId,
+      input.mvaTeamAId,
+      input.mvaTeamBId,
+      input.mvaRegistrationAId,
+      input.mvaRegistrationBId,
+      input.tournamentName,
+      input.divisionName,
+      input.teamAName,
+      input.teamBName,
+      input.teamALogoUrl,
+      input.teamBLogoUrl,
+      input.bestOf,
+      input.serving,
+    ]
+  );
 }
 export type StoredAction = PracticeAction extends infer T ? T extends PracticeAction
   ? Omit<T, "id" | "expectedRevision"> : never : never;
